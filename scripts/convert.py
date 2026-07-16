@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-Converts the weekly arrears xlsx files into data.json for the portal.
+Converts the weekly arrears xlsx files into data.json + data.js for the portal.
 
 Looks in the data/ folder for the newest:
-  - "Del Report*.xlsx"      -> FDGL / Paytek / PS Team / New in Arrears tabs
+  - "Del Report*.xlsx"      -> FDGL / Paytek tabs (split by PSAVE in Lease No.)
+                               PS Team & New in Arrears sheets become row tags
   - "PS Lease*.xlsx"        -> PS Lease tab
 
-Split rule: Lease No. containing "PSAVE" = Paytek, otherwise FDGL.
+Settled tracking: before overwriting data.json, the previous version is read.
+Any lease that was present last time but is missing from the new report is
+moved to the cumulative "Settled" tab (and removed again if it ever reappears).
 
 Run:  python scripts/convert.py
-Output: data.json in repo root.
 """
 import json
 import re
@@ -24,6 +26,9 @@ DATA_DIR = ROOT / "data"
 OUT_FILE = ROOT / "data.json"
 
 DATE_RE = re.compile(r"(\d{2})-(\d{2})-(\d{4})")
+
+SETTLED_COLS = ["Provider", "MID", "Legal Name", "Trading Name", "Lease No.",
+                "Last Arrears", "Paid", "Last Status", "Settled On"]
 
 
 def file_date(path: Path):
@@ -62,7 +67,6 @@ def read_sheet(ws):
     if not rows:
         return [], []
     header = [str(h).strip() if h is not None else "" for h in rows[0]]
-    # drop fully-empty trailing columns
     while header and header[-1] == "":
         header.pop()
     data = []
@@ -73,12 +77,47 @@ def read_sheet(ws):
     return header, data
 
 
+def col(columns, *names):
+    low = [c.lower() for c in columns]
+    for n in names:
+        if n in low:
+            return low.index(n)
+    return -1
+
+
+def lease_keys(tab):
+    """set of lease numbers in a tab dict"""
+    i = col(tab["columns"], "lease no.", "lease")
+    if i < 0:
+        return set()
+    return {str(r[i]) for r in tab["rows"] if i < len(r)}
+
+
+def settled_entry(provider, columns, row, settled_on):
+    g = lambda *names: (row[col(columns, *names)]
+                        if col(columns, *names) > -1 and col(columns, *names) < len(row) else "")
+    return [provider,
+            g("mid"), g("legal name"), g("trading name"),
+            g("lease no.", "lease"), g("arrears"),
+            g("paid", "payments made"),
+            g("lease status", "mandate status", "back office stage"),
+            settled_on]
+
+
 def main():
     del_file = newest(r"del report")
     ps_file = newest(r"ps lease")
 
     if not del_file and not ps_file:
-        sys.exit("No xlsx files found in data/ — nothing to do.")
+        sys.exit("No xlsx files found in data/ - nothing to do.")
+
+    # previous state (for settled tracking)
+    prev = None
+    if OUT_FILE.exists():
+        try:
+            prev = json.loads(OUT_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            prev = None
 
     tabs = {}
     sources = {}
@@ -89,22 +128,18 @@ def main():
                                  "date": file_date(del_file).strftime("%d/%m/%Y")}
         wb = openpyxl.load_workbook(del_file, read_only=True, data_only=True)
 
-        # Main sheet = first sheet
         main_ws = wb.worksheets[0]
         header, rows = read_sheet(main_ws)
-        try:
-            lease_idx = [h.lower() for h in header].index("lease no.")
-        except ValueError:
+        lease_idx = col(header, "lease no.")
+        if lease_idx < 0:
             lease_idx = 3
 
-        # PS Team / New in Arrears sheets are subsets of the main sheet -> tag rows
         def sheet_leases(name):
             if name not in wb.sheetnames:
                 return set()
             th, tr = read_sheet(wb[name])
-            try:
-                tl = [h.lower() for h in th].index("lease no.")
-            except ValueError:
+            tl = col(th, "lease no.")
+            if tl < 0:
                 tl = 3
             return {str(r[tl]) for r in tr if tl < len(r)}
 
@@ -131,6 +166,46 @@ def main():
         tabs["ps_lease"] = {"label": "PS Lease", "columns": h, "rows": r}
         wb.close()
 
+    # ---------- settled tracking ----------
+    PROVIDERS = ["fdgl", "paytek", "ps_lease"]
+    all_new_keys = set()
+    for k in PROVIDERS:
+        if k in tabs:
+            all_new_keys |= lease_keys(tabs[k])
+
+    settled_rows = []
+    seen = set()
+
+    # carry forward previously settled leases (unless they reappeared)
+    if prev and "settled" in prev.get("tabs", {}):
+        li = SETTLED_COLS.index("Lease No.")
+        for r in prev["tabs"]["settled"]["rows"]:
+            key = str(r[li]) if li < len(r) else ""
+            if key and key not in all_new_keys and key not in seen:
+                settled_rows.append(r)
+                seen.add(key)
+
+    # newly settled = in previous report but not in the new one
+    if prev:
+        for k in PROVIDERS:
+            pt = prev.get("tabs", {}).get(k)
+            nt = tabs.get(k)
+            if not pt or not nt:
+                continue
+            settled_on = sources.get("del_report" if k != "ps_lease" else "ps_lease",
+                                     {}).get("date", datetime.now().strftime("%d/%m/%Y"))
+            new_keys = lease_keys(nt)
+            li = col(pt["columns"], "lease no.", "lease")
+            if li < 0:
+                continue
+            for r in pt["rows"]:
+                key = str(r[li]) if li < len(r) else ""
+                if key and key not in new_keys and key not in seen:
+                    settled_rows.append(settled_entry(pt["label"], pt["columns"], r, settled_on))
+                    seen.add(key)
+
+    tabs["settled"] = {"label": "Settled", "columns": SETTLED_COLS, "rows": settled_rows}
+
     out = {
         "generated": datetime.now().strftime("%d/%m/%Y %H:%M"),
         "sources": sources,
@@ -138,10 +213,9 @@ def main():
     }
     payload = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
     OUT_FILE.write_text(payload, encoding="utf-8")
-    # data.js lets the portal work when opened as a local file (no fetch/CORS)
     (ROOT / "data.js").write_text("window.PORTAL_DATA=" + payload + ";",
                                   encoding="utf-8")
-  
+
     for k, t in tabs.items():
         print(f"  {t['label']:<15} {len(t['rows'])} rows")
     print(f"Wrote {OUT_FILE.name} and data.js")

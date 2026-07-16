@@ -248,7 +248,7 @@ function unlock(){
   document.getElementById("app").classList.add("on");
   init();
 }
-if(sessionStorage.getItem("psav_auth")==="1") unlock();
+if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 
 /* ================= DATA / STATE ================= */
 let DATA = null;

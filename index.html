@@ -279,9 +279,9 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 
 /* ================= CONFIG ================= */
 let DATA = null;
-const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease"];
-const MONEY_COLS = new Set(["contract payment","paid","arrears","amount"]);
-const STATUS_COLS = ["lease status","mandate status","back office stage"];
+const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","settled"];
+const MONEY_COLS = new Set(["contract payment","paid","arrears","amount","last arrears"]);
+const STATUS_COLS = ["lease status","mandate status","back office stage","last status","provider"];
 const TAG_COLS = ["ps team","new in arrears"];
 const DEFAULT_HIDDEN = new Set(["term","business number","address","buyback","amount","pm","partner's email"]);
 const PROV = {
@@ -289,6 +289,7 @@ const PROV = {
   fdgl:{mark:"FD", g:"linear-gradient(135deg,#33b1e8,#1a56ad)"},
   paytek:{mark:"PT", g:"linear-gradient(135deg,#8a63f4,#5433b8)"},
   ps_lease:{mark:"PS", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
+  settled:{mark:"✓", g:"linear-gradient(135deg,#26c281,#0f8a57)"},
   all:{mark:"£", g:"linear-gradient(135deg,#0b1f3f,#1c4e9d)"},
   newarr:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
 };
@@ -467,6 +468,8 @@ function renderDashboard(){
     html += cardHtml(c.k, "show('"+c.k+"')", c.label, c.n, fmtMoney(Math.round(c.arr*100)/100)+" arrears", pct);
   });
   html += cardHtml("newarr", "openTagged('New in Arrears')", "New in Arrears", naCount, naF+" FDGL · "+naP+" Paytek", "this week");
+  if(DATA.tabs.settled)
+    html += cardHtml("settled", "show('settled')", "Settled", DATA.tabs.settled.rows.length, "no longer in the report", "tracked weekly");
   html += "</div>";
 
   const maxArr = Math.max(...cards.map(c=>c.arr), 1);
@@ -623,7 +626,7 @@ function renderTable(tab){
     html += "<tr>";
     visCols.forEach(o=>{
       const name = o.c.toLowerCase(), v = r[o.i]===undefined?"":r[o.i];
-      if(name==="arrears") html += '<td class="arrears">'+fmtMoney(v)+"</td>";
+      if(name==="arrears"||name==="last arrears") html += '<td class="arrears">'+fmtMoney(v)+"</td>";
       else if(MONEY_COLS.has(name)) html += '<td class="money">'+fmtMoney(v)+"</td>";
       else if((STATUS_COLS.includes(name)||TAG_COLS.includes(name)) && v!=="") html += "<td>"+badge(v,name)+"</td>";
       else if(name==="email") html += '<td><a href="mailto:'+esc(v)+'">'+esc(v)+"</a></td>";

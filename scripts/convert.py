@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Converts the weekly arrears xlsx files into data.json + data.js for the portal.
+Converts the weekly arrears xlsx files into data.json for the portal.
 
 Looks in the data/ folder for the newest:
   - "Del Report*.xlsx"      -> FDGL / Paytek / PS Team / New in Arrears tabs
@@ -9,6 +9,7 @@ Looks in the data/ folder for the newest:
 Split rule: Lease No. containing "PSAVE" = Paytek, otherwise FDGL.
 
 Run:  python scripts/convert.py
+Output: data.json in repo root.
 """
 import json
 import re
@@ -61,6 +62,7 @@ def read_sheet(ws):
     if not rows:
         return [], []
     header = [str(h).strip() if h is not None else "" for h in rows[0]]
+    # drop fully-empty trailing columns
     while header and header[-1] == "":
         header.pop()
     data = []
@@ -76,7 +78,7 @@ def main():
     ps_file = newest(r"ps lease")
 
     if not del_file and not ps_file:
-        sys.exit("No xlsx files found in data/ - nothing to do.")
+        sys.exit("No xlsx files found in data/ — nothing to do.")
 
     tabs = {}
     sources = {}
@@ -87,24 +89,36 @@ def main():
                                  "date": file_date(del_file).strftime("%d/%m/%Y")}
         wb = openpyxl.load_workbook(del_file, read_only=True, data_only=True)
 
+        # Main sheet = first sheet
         main_ws = wb.worksheets[0]
         header, rows = read_sheet(main_ws)
         try:
             lease_idx = [h.lower() for h in header].index("lease no.")
         except ValueError:
             lease_idx = 3
+
+        # PS Team sheet rows are a subset of the main sheet -> tag them
+        ps_team_leases = set()
+        if "PS Team" in wb.sheetnames:
+            th, tr = read_sheet(wb["PS Team"])
+            try:
+                tl = [h.lower() for h in th].index("lease no.")
+            except ValueError:
+                tl = 3
+            ps_team_leases = {str(r[tl]) for r in tr if tl < len(r)}
+
+        header = header + ["PS Team"]
         fdgl, paytek = [], []
         for r in rows:
             lease = str(r[lease_idx]).upper() if lease_idx < len(r) else ""
+            r = list(r) + ["Yes" if str(r[lease_idx]) in ps_team_leases else ""]
             (paytek if "PSAVE" in lease else fdgl).append(r)
         tabs["fdgl"] = {"label": "FDGL", "columns": header, "rows": fdgl}
         tabs["paytek"] = {"label": "Paytek", "columns": header, "rows": paytek}
 
-        for sheet_name, key, label in [("PS Team", "ps_team", "PS Team"),
-                                       ("New in Arrears", "new_arrears", "New in Arrears")]:
-            if sheet_name in wb.sheetnames:
-                h, r = read_sheet(wb[sheet_name])
-                tabs[key] = {"label": label, "columns": h, "rows": r}
+        if "New in Arrears" in wb.sheetnames:
+            h, r = read_sheet(wb["New in Arrears"])
+            tabs["new_arrears"] = {"label": "New in Arrears", "columns": h, "rows": r}
         wb.close()
 
     if ps_file:
@@ -123,9 +137,10 @@ def main():
     }
     payload = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
     OUT_FILE.write_text(payload, encoding="utf-8")
+    # data.js lets the portal work when opened as a local file (no fetch/CORS)
     (ROOT / "data.js").write_text("window.PORTAL_DATA=" + payload + ";",
                                   encoding="utf-8")
-
+  
     for k, t in tabs.items():
         print(f"  {t['label']:<15} {len(t['rows'])} rows")
     print(f"Wrote {OUT_FILE.name} and data.js")

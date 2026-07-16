@@ -97,28 +97,29 @@ def main():
         except ValueError:
             lease_idx = 3
 
-        # PS Team sheet rows are a subset of the main sheet -> tag them
-        ps_team_leases = set()
-        if "PS Team" in wb.sheetnames:
-            th, tr = read_sheet(wb["PS Team"])
+        # PS Team / New in Arrears sheets are subsets of the main sheet -> tag rows
+        def sheet_leases(name):
+            if name not in wb.sheetnames:
+                return set()
+            th, tr = read_sheet(wb[name])
             try:
                 tl = [h.lower() for h in th].index("lease no.")
             except ValueError:
                 tl = 3
-            ps_team_leases = {str(r[tl]) for r in tr if tl < len(r)}
+            return {str(r[tl]) for r in tr if tl < len(r)}
 
-        header = header + ["PS Team"]
+        ps_team_leases = sheet_leases("PS Team")
+        new_arr_leases = sheet_leases("New in Arrears")
+
+        header = header + ["PS Team", "New in Arrears"]
         fdgl, paytek = [], []
         for r in rows:
-            lease = str(r[lease_idx]).upper() if lease_idx < len(r) else ""
-            r = list(r) + ["Yes" if str(r[lease_idx]) in ps_team_leases else ""]
-            (paytek if "PSAVE" in lease else fdgl).append(r)
+            lease_raw = str(r[lease_idx]) if lease_idx < len(r) else ""
+            r = list(r) + ["Yes" if lease_raw in ps_team_leases else "",
+                           "Yes" if lease_raw in new_arr_leases else ""]
+            (paytek if "PSAVE" in lease_raw.upper() else fdgl).append(r)
         tabs["fdgl"] = {"label": "FDGL", "columns": header, "rows": fdgl}
         tabs["paytek"] = {"label": "Paytek", "columns": header, "rows": paytek}
-
-        if "New in Arrears" in wb.sheetnames:
-            h, r = read_sheet(wb["New in Arrears"])
-            tabs["new_arrears"] = {"label": "New in Arrears", "columns": h, "rows": r}
         wb.close()
 
     if ps_file:

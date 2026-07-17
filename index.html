@@ -280,9 +280,9 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 /* ================= CONFIG ================= */
 let DATA = null;
 const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","settled"];
-const MONEY_COLS = new Set(["contract payment","paid","arrears","amount","last arrears"]);
+const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears"]);
 const STATUS_COLS = ["lease status","mandate status","back office stage","last status","provider"];
-const TAG_COLS = ["ps team","new in arrears"];
+const TAG_COLS = ["ps team","new in arrears","increased"];
 const DEFAULT_HIDDEN = new Set(["term","business number","address","buyback","amount","pm","partner's email"]);
 const PROV = {
   dashboard:{mark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>', g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
@@ -290,6 +290,7 @@ const PROV = {
   paytek:{mark:"PT", g:"linear-gradient(135deg,#8a63f4,#5433b8)"},
   ps_lease:{mark:"PS", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
   settled:{mark:"✓", g:"linear-gradient(135deg,#26c281,#0f8a57)"},
+  up:{mark:"↑", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
   all:{mark:"£", g:"linear-gradient(135deg,#0b1f3f,#1c4e9d)"},
   newarr:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
 };
@@ -354,7 +355,7 @@ function show(tab, presetQ){
   renderTable(tab);
 }
 function openTagged(tag){
-  ["fdgl","paytek"].forEach(k=>{
+  ["fdgl","paytek","ps_lease"].forEach(k=>{
     if(!DATA.tabs[k]) return;
     const st = ensureState(k);
     const i = colIdx(k,[tag.toLowerCase()]);
@@ -387,6 +388,7 @@ function badge(v, colName){
   let cls = "b-grey";
   if(colName==="ps team" && s==="yes") cls = "b-blue";
   else if(colName==="new in arrears" && s==="yes") cls = "b-purple";
+  else if(colName==="increased" && s==="yes") cls = "b-red";
   else if(/default|cancel|closed|terminated|not transacting/.test(s)) cls = "b-red";
   else if(/active|transacting|live|^paid|^yes$/.test(s)) cls = "b-green";
   else if(/arrears|pending|failed|expired/.test(s)) cls = "b-amber";
@@ -468,6 +470,8 @@ function renderDashboard(){
     html += cardHtml(c.k, "show('"+c.k+"')", c.label, c.n, fmtMoney(Math.round(c.arr*100)/100)+" arrears", pct);
   });
   html += cardHtml("newarr", "openTagged('New in Arrears')", "New in Arrears", naCount, naF+" FDGL · "+naP+" Paytek", "this week");
+  const incCount = countTag("fdgl","increased") + countTag("paytek","increased") + (DATA.tabs.ps_lease?countTag("ps_lease","increased"):0);
+  html += cardHtml("up", "openTagged('Increased')", "Arrears Increased", incCount, "owe more than last report", "vs previous week");
   if(DATA.tabs.settled)
     html += cardHtml("settled", "show('settled')", "Settled", DATA.tabs.settled.rows.length, "no longer in the report", "tracked weekly");
   html += "</div>";

@@ -280,7 +280,8 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 /* ================= CONFIG ================= */
 let DATA = null;
 const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","new_arrears","increased","settled"];
-const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears"]);
+const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears","rental"]);
+const SEARCH_ONLY_TABS = ["estate"]; /* searchable but no sidebar tab */
 const STATUS_COLS = ["lease status","mandate status","back office stage","last status","provider"];
 const TAG_COLS = ["ps team","new in arrears","increased"];
 const DEFAULT_HIDDEN = new Set(["term","business number","address","buyback","amount","pm","partner's email"]);
@@ -318,7 +319,8 @@ async function init(){
   document.getElementById("meta").innerHTML =
     "<b>Data updated</b><br>" + DATA.generated +
     (src.del_report ? "<br>Del Report: <b>" + src.del_report.date + "</b>" : "") +
-    (src.ps_lease ? "<br>PS Lease: <b>" + src.ps_lease.date + "</b>" : "");
+    (src.ps_lease ? "<br>PS Lease: <b>" + src.ps_lease.date + "</b>" : "") +
+    (src.estate ? "<br>Estate: <b>" + src.estate.date + "</b>" : "");
   buildVirtualTabs();
   buildNav();
   show("dashboard");
@@ -467,7 +469,7 @@ function renderDashboard(){
 
   let html = '<div class="hero"><h2>Arrears Dashboard</h2>'+
     '<div class="sub">Live overview across all lease providers · data updated '+esc(DATA.generated)+'</div>'+
-    searchBox("global", state._gq||"", "onGlobal(this.value)", true, "Search everything — MID, name, lease no, email, phone, address, partner…")+
+    searchBox("global", state._gq||"", "onGlobal(this.value)", true, "Search everything — MID, name, lease no, partner, estate terms paid, rental…")+
     '</div>';
 
   html += '<div id="globalResults"></div>';
@@ -514,15 +516,19 @@ function globalSearch(q){
   q = q.trim().toLowerCase();
   if(q.length < 2){ box.innerHTML=""; return; }
   let html = "", any = false;
-  TAB_ORDER.forEach(k=>{
+  TAB_ORDER.concat(SEARCH_ONLY_TABS).forEach(k=>{
     if(k==="dashboard" || !DATA.tabs[k]) return;
     const t = DATA.tabs[k];
     const hits = t.rows.filter(r=>r.some(c=>String(c).toLowerCase().includes(q)));
     if(!hits.length) return;
     any = true;
+    const searchOnly = SEARCH_ONLY_TABS.includes(k);
+    const shown = searchOnly ? 8 : 5;
     html += '<div class="grp"><h4>'+esc(t.label)+' — '+hits.length+' match'+(hits.length>1?"es":"")+
-      '<span class="more" onclick="show(\''+k+'\', state._gq)">open in tab →</span></h4>';
-    html += miniTable(k, hits.slice(0,5));
+      (searchOnly
+        ? (hits.length>shown ? '<span class="more" style="cursor:default">showing first '+shown+'</span>' : "")
+        : '<span class="more" onclick="show(\''+k+'\', state._gq)">open in tab →</span>')+'</h4>';
+    html += miniTable(k, hits.slice(0,shown));
     html += "</div>";
   });
   box.innerHTML = '<div class="panel"><h3>Search results</h3>'+(any ? html : '<div class="empty">No matches found.</div>')+'</div>';
@@ -530,7 +536,7 @@ function globalSearch(q){
 function miniTable(tab, rows){
   const t = DATA.tabs[tab];
   const keep = t.columns.map((c,i)=>({c,i})).filter(o=>
-    ["mid","legal name","trading name","lease no.","lease","arrears","lease status","mandate status","paid","ps team","new in arrears","partner"].includes(o.c.toLowerCase()));
+    ["mid","legal name","trading name","lease no.","lease no","lease","arrears","lease status","mandate status","paid","term","rental","ps team","new in arrears","partner"].includes(o.c.toLowerCase()));
   let h = '<div class="tablewrap" style="max-height:none;box-shadow:none;border-radius:12px"><table><thead><tr>';
   keep.forEach(o=> h += "<th style='cursor:default'>"+esc(o.c)+"</th>");
   h += "</tr></thead><tbody>";

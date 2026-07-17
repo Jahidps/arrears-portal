@@ -2,14 +2,15 @@
 """
 Converts the weekly arrears xlsx files into data.json + data.js for the portal.
 
-Looks in the data/ folder for the newest:
-  - "Del Report*.xlsx"      -> FDGL / Paytek tabs (split by PSAVE in Lease No.)
-                               PS Team & New in Arrears sheets become row tags
-  - "PS Lease*.xlsx"        -> PS Lease tab
+data/ folder:
+  - "Del Report (DD-MM-YYYY).xlsx"           -> FDGL / Paytek tabs
+  - "PS Lease Del report -DD-MM-YYYY.xlsx"   -> PS Lease tab
 
-Settled tracking: before overwriting data.json, the previous version is read.
-Any lease that was present last time but is missing from the new report is
-moved to the cumulative "Settled" tab (and removed again if it ever reappears).
+The portal always shows the NEWEST report of each type. But ALL reports in
+data/ are processed in date order to build the cumulative "Settled" tab:
+any lease present in one week's report but missing from the next is settled
+(and removed again if it ever reappears). Previously settled leases from the
+existing data.json are carried forward, so deleting old xlsx files is safe.
 
 Run:  python scripts/convert.py
 """
@@ -42,12 +43,10 @@ def file_date(path: Path):
     return datetime.fromtimestamp(path.stat().st_mtime)
 
 
-def newest(pattern: str):
+def files_sorted(pattern: str):
     files = [p for p in DATA_DIR.glob("*.xlsx")
              if re.match(pattern, p.name, re.IGNORECASE) and not p.name.startswith("~")]
-    if not files:
-        return None
-    return max(files, key=file_date)
+    return sorted(files, key=file_date)
 
 
 def clean(v):
@@ -86,7 +85,6 @@ def col(columns, *names):
 
 
 def lease_keys(tab):
-    """set of lease numbers in a tab dict"""
     i = col(tab["columns"], "lease no.", "lease")
     if i < 0:
         return set()
@@ -95,7 +93,7 @@ def lease_keys(tab):
 
 def settled_entry(provider, columns, row, settled_on):
     g = lambda *names: (row[col(columns, *names)]
-                        if col(columns, *names) > -1 and col(columns, *names) < len(row) else "")
+                        if -1 < col(columns, *names) < len(row) else "")
     return [provider,
             g("mid"), g("legal name"), g("trading name"),
             g("lease no.", "lease"), g("arrears"),
@@ -104,107 +102,156 @@ def settled_entry(provider, columns, row, settled_on):
             settled_on]
 
 
-def main():
-    del_file = newest(r"del report")
-    ps_file = newest(r"ps lease")
+def build_del_tabs(path: Path):
+    """Parse one Del Report file into fdgl/paytek tabs with tag columns."""
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    header, rows = read_sheet(wb.worksheets[0])
+    lease_idx = col(header, "lease no.")
+    if lease_idx < 0:
+        lease_idx = 3
 
-    if not del_file and not ps_file:
+    def sheet_leases(name):
+        if name not in wb.sheetnames:
+            return set()
+        th, tr = read_sheet(wb[name])
+        tl = col(th, "lease no.")
+        if tl < 0:
+            tl = 3
+        return {str(r[tl]) for r in tr if tl < len(r)}
+
+    ps_team = sheet_leases("PS Team")
+    new_arr = sheet_leases("New in Arrears")
+    wb.close()
+
+    header = header + ["PS Team", "New in Arrears"]
+    fdgl, paytek = [], []
+    for r in rows:
+        lease_raw = str(r[lease_idx]) if lease_idx < len(r) else ""
+        r = list(r) + ["Yes" if lease_raw in ps_team else "",
+                       "Yes" if lease_raw in new_arr else ""]
+        (paytek if "PSAVE" in lease_raw.upper() else fdgl).append(r)
+    return {"fdgl": {"label": "FDGL", "columns": header, "rows": fdgl},
+            "paytek": {"label": "Paytek", "columns": header, "rows": paytek}}
+
+
+def build_ps_tab(path: Path):
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    h, r = read_sheet(wb.worksheets[0])
+    wb.close()
+    return {"ps_lease": {"label": "PS Lease", "columns": h, "rows": r}}
+
+
+def chain(files, builder, settled, seen):
+    """Process files oldest->newest; diff consecutive reports into settled.
+    Returns (newest_tabs, previous_tabs) — previous is the report before the
+    newest one, used for arrears-increase tracking."""
+    prev_tabs = None
+    before = None
+    for f in files:
+        tabs_i = builder(f)
+        if prev_tabs:
+            settled_on = file_date(f).strftime("%d/%m/%Y")
+            for k, pt in prev_tabs.items():
+                nt = tabs_i.get(k)
+                if not nt:
+                    continue
+                new_keys = lease_keys(nt)
+                li = col(pt["columns"], "lease no.", "lease")
+                if li < 0:
+                    continue
+                for r in pt["rows"]:
+                    key = str(r[li]) if li < len(r) else ""
+                    if key and key not in new_keys and key not in seen:
+                        settled.append(settled_entry(pt["label"], pt["columns"], r, settled_on))
+                        seen.add(key)
+        before = prev_tabs
+        prev_tabs = tabs_i
+    return prev_tabs, before
+
+
+def annotate_increase(latest, previous):
+    """Add 'Prev Arrears' + 'Increased' columns to each provider tab by
+    comparing against the previous report."""
+    if not latest:
+        return
+    for k, nt in latest.items():
+        pt = previous.get(k) if previous else None
+        li = col(nt["columns"], "lease no.", "lease")
+        ai = col(nt["columns"], "arrears")
+        prev_map = {}
+        if pt:
+            pli = col(pt["columns"], "lease no.", "lease")
+            pai = col(pt["columns"], "arrears")
+            if pli > -1 and pai > -1:
+                prev_map = {str(r[pli]): r[pai] for r in pt["rows"]
+                            if pli < len(r) and pai < len(r)}
+        nt["columns"] = nt["columns"] + ["Prev Arrears", "Increased"]
+        for r in nt["rows"]:
+            key = str(r[li]) if -1 < li < len(r) else ""
+            pv = prev_map.get(key, "")
+            inc = ""
+            if pv != "" and ai > -1 and ai < len(r):
+                try:
+                    if float(r[ai]) > float(pv):
+                        inc = "Yes"
+                except (TypeError, ValueError):
+                    pass
+            r.extend([pv, inc])
+
+
+def main():
+    del_files = files_sorted(r"del report")
+    ps_files = files_sorted(r"ps lease")
+
+    if not del_files and not ps_files:
         sys.exit("No xlsx files found in data/ - nothing to do.")
 
-    # previous state (for settled tracking)
-    prev = None
+    # carry forward previously settled leases from the existing data.json
+    carried = []
     if OUT_FILE.exists():
         try:
             prev = json.loads(OUT_FILE.read_text(encoding="utf-8"))
+            carried = prev.get("tabs", {}).get("settled", {}).get("rows", [])
         except Exception:
-            prev = None
+            carried = []
+
+    settled, seen = [], set()
+    li = SETTLED_COLS.index("Lease No.")
+    for r in carried:
+        key = str(r[li]) if li < len(r) else ""
+        if key and key not in seen:
+            settled.append(r)
+            seen.add(key)
 
     tabs = {}
     sources = {}
 
-    if del_file:
-        print(f"Del Report file : {del_file.name}")
-        sources["del_report"] = {"file": del_file.name,
-                                 "date": file_date(del_file).strftime("%d/%m/%Y")}
-        wb = openpyxl.load_workbook(del_file, read_only=True, data_only=True)
+    del_tabs, del_prev = chain(del_files, build_del_tabs, settled, seen)
+    if del_tabs:
+        annotate_increase(del_tabs, del_prev)
+        tabs.update(del_tabs)
+        f = del_files[-1]
+        print(f"Del Report file : {f.name}  ({len(del_files)} report(s) chained)")
+        sources["del_report"] = {"file": f.name,
+                                 "date": file_date(f).strftime("%d/%m/%Y")}
 
-        main_ws = wb.worksheets[0]
-        header, rows = read_sheet(main_ws)
-        lease_idx = col(header, "lease no.")
-        if lease_idx < 0:
-            lease_idx = 3
+    ps_tabs, ps_prev = chain(ps_files, build_ps_tab, settled, seen)
+    if ps_tabs:
+        annotate_increase(ps_tabs, ps_prev)
+        tabs.update(ps_tabs)
+        f = ps_files[-1]
+        print(f"PS Lease file   : {f.name}  ({len(ps_files)} report(s) chained)")
+        sources["ps_lease"] = {"file": f.name,
+                               "date": file_date(f).strftime("%d/%m/%Y")}
 
-        def sheet_leases(name):
-            if name not in wb.sheetnames:
-                return set()
-            th, tr = read_sheet(wb[name])
-            tl = col(th, "lease no.")
-            if tl < 0:
-                tl = 3
-            return {str(r[tl]) for r in tr if tl < len(r)}
-
-        ps_team_leases = sheet_leases("PS Team")
-        new_arr_leases = sheet_leases("New in Arrears")
-
-        header = header + ["PS Team", "New in Arrears"]
-        fdgl, paytek = [], []
-        for r in rows:
-            lease_raw = str(r[lease_idx]) if lease_idx < len(r) else ""
-            r = list(r) + ["Yes" if lease_raw in ps_team_leases else "",
-                           "Yes" if lease_raw in new_arr_leases else ""]
-            (paytek if "PSAVE" in lease_raw.upper() else fdgl).append(r)
-        tabs["fdgl"] = {"label": "FDGL", "columns": header, "rows": fdgl}
-        tabs["paytek"] = {"label": "Paytek", "columns": header, "rows": paytek}
-        wb.close()
-
-    if ps_file:
-        print(f"PS Lease file   : {ps_file.name}")
-        sources["ps_lease"] = {"file": ps_file.name,
-                               "date": file_date(ps_file).strftime("%d/%m/%Y")}
-        wb = openpyxl.load_workbook(ps_file, read_only=True, data_only=True)
-        h, r = read_sheet(wb.worksheets[0])
-        tabs["ps_lease"] = {"label": "PS Lease", "columns": h, "rows": r}
-        wb.close()
-
-    # ---------- settled tracking ----------
-    PROVIDERS = ["fdgl", "paytek", "ps_lease"]
+    # drop settled leases that reappeared in the latest reports
     all_new_keys = set()
-    for k in PROVIDERS:
+    for k in ["fdgl", "paytek", "ps_lease"]:
         if k in tabs:
             all_new_keys |= lease_keys(tabs[k])
+    settled = [r for r in settled if str(r[li]) not in all_new_keys]
 
-    settled_rows = []
-    seen = set()
-
-    # carry forward previously settled leases (unless they reappeared)
-    if prev and "settled" in prev.get("tabs", {}):
-        li = SETTLED_COLS.index("Lease No.")
-        for r in prev["tabs"]["settled"]["rows"]:
-            key = str(r[li]) if li < len(r) else ""
-            if key and key not in all_new_keys and key not in seen:
-                settled_rows.append(r)
-                seen.add(key)
-
-    # newly settled = in previous report but not in the new one
-    if prev:
-        for k in PROVIDERS:
-            pt = prev.get("tabs", {}).get(k)
-            nt = tabs.get(k)
-            if not pt or not nt:
-                continue
-            settled_on = sources.get("del_report" if k != "ps_lease" else "ps_lease",
-                                     {}).get("date", datetime.now().strftime("%d/%m/%Y"))
-            new_keys = lease_keys(nt)
-            li = col(pt["columns"], "lease no.", "lease")
-            if li < 0:
-                continue
-            for r in pt["rows"]:
-                key = str(r[li]) if li < len(r) else ""
-                if key and key not in new_keys and key not in seen:
-                    settled_rows.append(settled_entry(pt["label"], pt["columns"], r, settled_on))
-                    seen.add(key)
-
-    tabs["settled"] = {"label": "Settled", "columns": SETTLED_COLS, "rows": settled_rows}
+    tabs["settled"] = {"label": "Settled", "columns": SETTLED_COLS, "rows": settled}
 
     out = {
         "generated": datetime.now().strftime("%d/%m/%Y %H:%M"),

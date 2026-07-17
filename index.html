@@ -279,7 +279,7 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 
 /* ================= CONFIG ================= */
 let DATA = null;
-const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","settled"];
+const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","new_arrears","increased","settled"];
 const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears"]);
 const STATUS_COLS = ["lease status","mandate status","back office stage","last status","provider"];
 const TAG_COLS = ["ps team","new in arrears","increased"];
@@ -290,9 +290,9 @@ const PROV = {
   paytek:{mark:"PT", g:"linear-gradient(135deg,#8a63f4,#5433b8)"},
   ps_lease:{mark:"PS", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
   settled:{mark:"✓", g:"linear-gradient(135deg,#26c281,#0f8a57)"},
-  up:{mark:"↑", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
+  increased:{mark:"↑", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
   all:{mark:"£", g:"linear-gradient(135deg,#0b1f3f,#1c4e9d)"},
-  newarr:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
+  new_arrears:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
 };
 const SICON = '<svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
 const I_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>';
@@ -319,8 +319,27 @@ async function init(){
     "<b>Data updated</b><br>" + DATA.generated +
     (src.del_report ? "<br>Del Report: <b>" + src.del_report.date + "</b>" : "") +
     (src.ps_lease ? "<br>PS Lease: <b>" + src.ps_lease.date + "</b>" : "");
+  buildVirtualTabs();
   buildNav();
   show("dashboard");
+}
+
+/* combined one-page views built from FDGL + Paytek rows */
+function buildVirtualTabs(){
+  [["new_arrears","New in Arrears","new in arrears"],
+   ["increased","Arrears Increased","increased"]].forEach(def=>{
+    const [key,label,colName] = def;
+    const src = ["fdgl","paytek"].filter(k=>DATA.tabs[k]);
+    if(!src.length) return;
+    const base = DATA.tabs[src[0]].columns;
+    const rows = [];
+    src.forEach(k=>{
+      const t = DATA.tabs[k], i = colIdx(k,[colName]);
+      if(i<0) return;
+      t.rows.forEach(r=>{ if(String(r[i])==="Yes") rows.push([t.label, ...r]); });
+    });
+    DATA.tabs[key] = {label, columns:["Provider", ...base], rows};
+  });
 }
 
 function tile(k, small){
@@ -354,16 +373,6 @@ function show(tab, presetQ){
   if(presetQ!==undefined){ st.q = presetQ; st.page = 1; }
   renderTable(tab);
 }
-function openTagged(tag){
-  ["fdgl","paytek","ps_lease"].forEach(k=>{
-    if(!DATA.tabs[k]) return;
-    const st = ensureState(k);
-    const i = colIdx(k,[tag.toLowerCase()]);
-    st.facets = {}; st.q = ""; st.page = 1;
-    if(i>-1) st.facets[i] = new Set(["Yes"]);
-  });
-  show("fdgl");
-}
 
 /* ================= HELPERS ================= */
 const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -396,7 +405,7 @@ function badge(v, colName){
 }
 function loadCols(tab){
   try{
-    const saved = localStorage.getItem("psav_cols2_"+tab);
+    const saved = localStorage.getItem("psav_cols3_"+tab);
     if(saved) return new Set(JSON.parse(saved));
   }catch(e){}
   const vis = new Set();
@@ -404,7 +413,7 @@ function loadCols(tab){
   return vis;
 }
 function saveCols(tab){
-  try{ localStorage.setItem("psav_cols2_"+tab, JSON.stringify([...state[tab].colVis])); }catch(e){}
+  try{ localStorage.setItem("psav_cols3_"+tab, JSON.stringify([...state[tab].colVis])); }catch(e){}
 }
 function facetCount(st){
   return Object.values(st.facets).reduce((a,s)=>a+s.size,0);
@@ -453,8 +462,8 @@ function renderDashboard(){
     totalRows += t.rows.length; totalArr += arr;
     return {k, label:t.label, n:t.rows.length, arr};
   });
-  const naCount = countTag("fdgl","new in arrears") + countTag("paytek","new in arrears");
   const naF = countTag("fdgl","new in arrears"), naP = countTag("paytek","new in arrears");
+  const naCount = DATA.tabs.new_arrears ? DATA.tabs.new_arrears.rows.length : naF+naP;
 
   let html = '<div class="hero"><h2>Arrears Dashboard</h2>'+
     '<div class="sub">Live overview across all lease providers · data updated '+esc(DATA.generated)+'</div>'+
@@ -469,9 +478,9 @@ function renderDashboard(){
     const pct = totalArr ? (c.arr/totalArr*100).toFixed(1)+"% of arrears" : "";
     html += cardHtml(c.k, "show('"+c.k+"')", c.label, c.n, fmtMoney(Math.round(c.arr*100)/100)+" arrears", pct);
   });
-  html += cardHtml("newarr", "openTagged('New in Arrears')", "New in Arrears", naCount, naF+" FDGL · "+naP+" Paytek", "this week");
-  const incCount = countTag("fdgl","increased") + countTag("paytek","increased") + (DATA.tabs.ps_lease?countTag("ps_lease","increased"):0);
-  html += cardHtml("up", "openTagged('Increased')", "Arrears Increased", incCount, "owe more than last report", "vs previous week");
+  html += cardHtml("new_arrears", "show('new_arrears')", "New in Arrears", naCount, naF+" FDGL · "+naP+" Paytek", "this week");
+  const incCount = DATA.tabs.increased ? DATA.tabs.increased.rows.length : 0;
+  html += cardHtml("increased", "show('increased')", "Arrears Increased", incCount, "owe more than last report", "vs previous week");
   if(DATA.tabs.settled)
     html += cardHtml("settled", "show('settled')", "Settled", DATA.tabs.settled.rows.length, "no longer in the report", "tracked weekly");
   html += "</div>";
@@ -494,7 +503,12 @@ function cardHtml(k, onclick, label, n, sub, pct){
     '<div><div class="t">'+esc(label)+'</div><div class="n">'+Number(n).toLocaleString()+'</div>'+
     '<div class="s">'+sub+'</div>'+(pct?'<div class="pct">'+esc(pct)+'</div>':"")+'</div></div>';
 }
-function onGlobal(v){ state._gq = v; syncClear("global"); globalSearch(v); }
+let gTimer = null;
+function onGlobal(v){
+  state._gq = v; syncClear("global");
+  clearTimeout(gTimer);
+  gTimer = setTimeout(()=>globalSearch(v), 150);
+}
 function globalSearch(q){
   const box = document.getElementById("globalResults");
   q = q.trim().toLowerCase();
@@ -516,7 +530,7 @@ function globalSearch(q){
 function miniTable(tab, rows){
   const t = DATA.tabs[tab];
   const keep = t.columns.map((c,i)=>({c,i})).filter(o=>
-    ["mid","legal name","trading name","lease no.","lease","arrears","lease status","mandate status","paid","ps team","new in arrears"].includes(o.c.toLowerCase()));
+    ["mid","legal name","trading name","lease no.","lease","arrears","lease status","mandate status","paid","ps team","new in arrears","partner"].includes(o.c.toLowerCase()));
   let h = '<div class="tablewrap" style="max-height:none;box-shadow:none;border-radius:12px"><table><thead><tr>';
   keep.forEach(o=> h += "<th style='cursor:default'>"+esc(o.c)+"</th>");
   h += "</tr></thead><tbody>";
@@ -556,13 +570,8 @@ function facetDefs(tab){
   return defs;
 }
 function renderTable(tab){
+  /* static shell: page head + toolbar (search input survives re-renders) */
   const t = DATA.tabs[tab], st = state[tab];
-  const rows = filterRows(tab);
-  const pages = Math.max(1, Math.ceil(rows.length/PAGE));
-  if(st.page>pages) st.page = pages;
-  const slice = rows.slice((st.page-1)*PAGE, st.page*PAGE);
-  const arrTotal = sumArrears(tab, rows);
-  const visCols = t.columns.map((c,i)=>({c,i})).filter(o=>st.colVis.has(o.i));
   const nFilters = facetCount(st);
 
   let html = '<div class="pagehead">'+tile(tab)+'<div><h2>'+esc(t.label)+'</h2>'+
@@ -574,7 +583,7 @@ function renderTable(tab){
   /* Filters dropdown */
   const defs = facetDefs(tab);
   if(defs.length){
-    html += '<div class="ddwrap"><button class="tbtn" onclick="toggleDD(event,\'filterpanel\')">'+I_FILTER+'Filters'+(nFilters?'<span class="fcount">'+nFilters+"</span>":"")+'</button>'+
+    html += '<div class="ddwrap"><button class="tbtn" onclick="toggleDD(event,\'filterpanel\')">'+I_FILTER+'Filters<span class="fcount" id="fbadge" '+(nFilters?'':'style="display:none"')+'>'+nFilters+'</span></button>'+
       '<div class="ddpanel" id="filterpanel">';
     defs.forEach(d=>{
       if(d.tags){
@@ -594,7 +603,7 @@ function renderTable(tab){
     html += '<div class="dd-actions"><button onclick="clearFilters(\''+tab+'\')">Clear all filters</button></div></div></div>';
   }
 
-  html += '<span class="stat">'+rows.length.toLocaleString()+" leases · <b>"+fmtMoney(Math.round(arrTotal*100)/100)+"</b></span>";
+  html += '<span class="stat" id="tstat"></span>';
 
   /* Columns dropdown */
   html += '<div class="ddwrap"><button class="tbtn" onclick="toggleDD(event,\'colpanel\')">'+I_COLS+'Columns</button>'+
@@ -604,8 +613,32 @@ function renderTable(tab){
     "</div></div>";
   html += '<button class="tbtn" onclick="exportCsv(\''+tab+'\')">'+I_EXPORT+'Export</button>';
   html += "</div>";
+  html += '<div id="dyn"></div>';
 
-  /* active filter chips */
+  document.getElementById("main").innerHTML = html;
+  renderDyn(tab);
+}
+
+function renderDyn(tab){
+  /* dynamic part only: chips + table + pager (search input untouched) */
+  if(current!==tab) return;
+  const dyn = document.getElementById("dyn");
+  if(!dyn) return;
+  const t = DATA.tabs[tab], st = state[tab];
+  const rows = filterRows(tab);
+  const pages = Math.max(1, Math.ceil(rows.length/PAGE));
+  if(st.page>pages) st.page = pages;
+  const slice = rows.slice((st.page-1)*PAGE, st.page*PAGE);
+  const arrTotal = sumArrears(tab, rows);
+  const visCols = t.columns.map((c,i)=>({c,i})).filter(o=>st.colVis.has(o.i));
+  const nFilters = facetCount(st);
+
+  const stat = document.getElementById("tstat");
+  if(stat) stat.innerHTML = rows.length.toLocaleString()+" leases · <b>"+fmtMoney(Math.round(arrTotal*100)/100)+"</b>";
+  const fb = document.getElementById("fbadge");
+  if(fb){ fb.textContent = nFilters; fb.style.display = nFilters ? "" : "none"; }
+
+  let html = "";
   if(nFilters || st.q){
     html += '<div class="chips">';
     for(const [ci, vals] of Object.entries(st.facets)){
@@ -645,9 +678,17 @@ function renderTable(tab){
     "<span>Page "+st.page+" of "+pages+"</span>"+
     '<button '+(st.page>=pages?"disabled":"")+' onclick="onPage(\''+tab+'\',1)">Next ›</button></div>';
 
-  document.getElementById("main").innerHTML = html;
+  dyn.innerHTML = html;
 }
-function onQ(tab,v){ state[tab].q=v; state[tab].page=1; renderTableKeepFocus(tab); }
+
+let qTimer = null;
+function onQ(tab,v){
+  state[tab].q = v;
+  state[tab].page = 1;
+  syncClear(tab);
+  clearTimeout(qTimer);
+  qTimer = setTimeout(()=>renderDyn(tab), 120);
+}
 function onFacet(cb){
   const tab = cb.dataset.tab, ci = cb.dataset.col, v = cb.dataset.val;
   const st = state[tab];
@@ -655,9 +696,7 @@ function onFacet(cb){
   if(cb.checked) st.facets[ci].add(v); else st.facets[ci].delete(v);
   if(!st.facets[ci].size) delete st.facets[ci];
   st.page = 1;
-  renderTable(tab);
-  const p = document.getElementById("filterpanel");
-  if(p) p.classList.add("open");
+  renderDyn(tab);  /* panel stays open, checkboxes untouched */
 }
 function removeChip(btn){
   const tab = btn.dataset.tab, ci = btn.dataset.col, v = btn.dataset.val;
@@ -676,14 +715,9 @@ function clearFilters(tab, alsoSearch){
 function onSort(tab,i){
   const st=state[tab];
   if(st.sortCol===i) st.sortDir*=-1; else {st.sortCol=i; st.sortDir=1;}
-  renderTable(tab);
+  renderDyn(tab);
 }
-function onPage(tab,d){ state[tab].page+=d; renderTable(tab); }
-function renderTableKeepFocus(tab){
-  renderTable(tab);
-  const inp = document.getElementById("in_"+tab);
-  if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
-}
+function onPage(tab,d){ state[tab].page+=d; renderDyn(tab); }
 function toggleDD(e, id){
   e.stopPropagation();
   document.querySelectorAll(".ddpanel").forEach(p=>{ if(p.id!==id) p.classList.remove("open"); });
@@ -697,8 +731,7 @@ function onColToggle(tab,i,on){
   if(on) st.colVis.add(i); else st.colVis.delete(i);
   if(st.colVis.size===0) st.colVis.add(i);
   saveCols(tab);
-  renderTable(tab);
-  document.getElementById("colpanel").classList.add("open");
+  renderDyn(tab);  /* panel stays open */
 }
 function colsAll(tab,all){
   const st = state[tab];

@@ -27,6 +27,10 @@ DATA_DIR = ROOT / "data"
 OUT_FILE = ROOT / "data.json"
 
 DATE_RE = re.compile(r"(\d{2})-(\d{2})-(\d{4})")
+MONTH_RE = re.compile(r"(january|february|march|april|may|june|july|august|september|october|november|december)[ _-]*(\d{4})", re.IGNORECASE)
+MONTHS = {m: i+1 for i, m in enumerate(
+    ["january","february","march","april","may","june",
+     "july","august","september","october","november","december"])}
 
 SETTLED_COLS = ["Provider", "MID", "Legal Name", "Trading Name", "Lease No.",
                 "Last Arrears", "Paid", "Last Status", "Settled On"]
@@ -40,6 +44,9 @@ def file_date(path: Path):
             return datetime(y, mo, d)
         except ValueError:
             pass
+    m = MONTH_RE.search(path.name)
+    if m:
+        return datetime(int(m.group(2)), MONTHS[m.group(1).lower()], 1)
     return datetime.fromtimestamp(path.stat().st_mtime)
 
 
@@ -255,6 +262,36 @@ def main():
     settled = [r for r in settled if str(r[li]) not in all_new_keys]
 
     tabs["settled"] = {"label": "Settled", "columns": SETTLED_COLS, "rows": settled}
+
+    # ---------- estate report (monthly, searchable only — no tab) ----------
+    estate_files = files_sorted(r"estate report")
+    if estate_files:
+        ef = estate_files[-1]
+        print(f"Estate Report   : {ef.name}")
+        sources["estate"] = {"file": ef.name,
+                             "date": file_date(ef).strftime("%B %Y")}
+        wb = openpyxl.load_workbook(ef, read_only=True, data_only=True)
+        eh, er = read_sheet(wb.worksheets[0])
+        wb.close()
+        eli = col(eh, "lease no", "lease no.", "lease")
+        # merge current arrears + status from the del report
+        amap = {}
+        for k in ["fdgl", "paytek"]:
+            t = tabs.get(k)
+            if not t:
+                continue
+            tli = col(t["columns"], "lease no.")
+            tai = col(t["columns"], "arrears")
+            tsi = col(t["columns"], "lease status")
+            for r in t["rows"]:
+                amap[str(r[tli])] = (r[tai] if tai > -1 else "",
+                                     r[tsi] if tsi > -1 else "")
+        eh = eh + ["Arrears", "Lease Status"]
+        for r in er:
+            key = str(r[eli]) if -1 < eli < len(r) else ""
+            a, s = amap.get(key, ("", ""))
+            r.extend([a, s])
+        tabs["estate"] = {"label": "Estate", "columns": eh, "rows": er}
 
     out = {
         "generated": datetime.now().strftime("%d/%m/%Y %H:%M"),

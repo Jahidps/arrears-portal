@@ -185,7 +185,9 @@ def annotate_increase(latest, previous):
             if pli > -1 and pai > -1:
                 prev_map = {str(r[pli]): r[pai] for r in pt["rows"]
                             if pli < len(r) and pai < len(r)}
-        nt["columns"] = nt["columns"] + ["Prev Arrears", "Increased"]
+        # place "Prev Arrears" right next to "Arrears"
+        ins = ai + 1 if ai > -1 else len(nt["columns"])
+        nt["columns"] = nt["columns"][:ins] + ["Prev Arrears"] + nt["columns"][ins:] + ["Increased"]
         for r in nt["rows"]:
             key = str(r[li]) if -1 < li < len(r) else ""
             pv = prev_map.get(key, "")
@@ -196,7 +198,8 @@ def annotate_increase(latest, previous):
                         inc = "Yes"
                 except (TypeError, ValueError):
                     pass
-            r.extend([pv, inc])
+            r[ins:ins] = [pv]
+            r.append(inc)
 
 
 def main():

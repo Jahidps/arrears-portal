@@ -272,7 +272,15 @@ def main():
                              "date": file_date(ef).strftime("%B %Y")}
         wb = openpyxl.load_workbook(ef, read_only=True, data_only=True)
         eh, er = read_sheet(wb.worksheets[0])
+        # optional extra sheet holding the PS Lease estate (different columns)
+        pse_h, pse_r = [], []
+        for sn in wb.sheetnames:
+            if sn.strip().lower() in ("ps lease estate", "ps lease",
+                                      "ps_lease estate", "ps lease (estate)"):
+                pse_h, pse_r = read_sheet(wb[sn])
+                break
         wb.close()
+
         eli = col(eh, "lease no", "lease no.", "lease")
         # merge current arrears + status from the del report
         amap = {}
@@ -292,6 +300,36 @@ def main():
             a, s = amap.get(key, ("", ""))
             r.extend([a, s])
         tabs["estate"] = {"label": "Estate", "columns": eh, "rows": er}
+
+        # ---- PS Lease estate sheet (searchable only) ----
+        # the sheet carries a Yes/No "Arrears" flag; the actual £ amount and
+        # missed months come from the PS Lease del report, keyed on Lease No.
+        if pse_h:
+            # rename the Yes/No flag so it doesn't clash with the £ amount
+            pse_h = ["In Arrears" if str(c).strip().lower() == "arrears" else c
+                     for c in pse_h]
+            pli = col(pse_h, "lease no", "lease no.", "lease")
+            pmap = {}
+            t = tabs.get("ps_lease")
+            if t:
+                tli = col(t["columns"], "lease", "lease no.")
+                tai = col(t["columns"], "arrears")
+                tmm = col(t["columns"], "missed months")
+                for r in t["rows"]:
+                    pmap[str(r[tli])] = (r[tai] if tai > -1 else "",
+                                         r[tmm] if tmm > -1 else "")
+            # place the £ "Arrears" amount right after the "In Arrears" flag
+            fi = col(pse_h, "in arrears")
+            ins = fi + 1 if fi > -1 else len(pse_h)
+            pse_h = pse_h[:ins] + ["Arrears"] + pse_h[ins:] + ["Missed Months"]
+            for r in pse_r:
+                key = str(r[pli]) if -1 < pli < len(r) else ""
+                a, mm = pmap.get(key, ("", ""))
+                r[ins:ins] = [a]
+                r.append(mm)
+            tabs["ps_lease_estate"] = {"label": "PS Lease Estate",
+                                       "columns": pse_h, "rows": pse_r}
+            print(f"PS Lease Estate : {ef.name}  ({len(pse_r)} leases)")
 
     out = {
         "generated": datetime.now().strftime("%d/%m/%Y %H:%M"),

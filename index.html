@@ -281,8 +281,8 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 let DATA = null;
 const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","new_arrears","increased","settled"];
 const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears","rental"]);
-const SEARCH_ONLY_TABS = ["estate"]; /* searchable but no sidebar tab */
-const STATUS_COLS = ["lease status","mandate status","back office stage","last status","provider"];
+const SEARCH_ONLY_TABS = ["estate","ps_lease_estate"]; /* searchable but no sidebar tab */
+const STATUS_COLS = ["lease status","mandate status","dd status","subscription","back office stage","last status","provider"];
 const TAG_COLS = ["ps team","new in arrears","increased"];
 const DEFAULT_HIDDEN = new Set(["term","business number","address","buyback","amount","pm","partner's email"]);
 const PROV = {
@@ -535,7 +535,10 @@ function globalSearch(q){
 }
 function miniTable(tab, rows){
   const t = DATA.tabs[tab];
-  const keep = t.columns.map((c,i)=>({c,i})).filter(o=>
+  /* search-only views (estate, ps lease estate) show every column — "all info" */
+  const keep = SEARCH_ONLY_TABS.includes(tab)
+    ? t.columns.map((c,i)=>({c,i}))
+    : t.columns.map((c,i)=>({c,i})).filter(o=>
     ["mid","legal name","trading name","lease no.","lease no","lease","arrears","lease status","mandate status","paid","term","rental","ps team","new in arrears","partner"].includes(o.c.toLowerCase()));
   let h = '<div class="tablewrap" style="max-height:none;box-shadow:none;border-radius:12px"><table><thead><tr>';
   keep.forEach(o=> h += "<th style='cursor:default'>"+esc(o.c)+"</th>");

@@ -527,8 +527,8 @@ function renderDashboard(){
   const es = estateSummary(), wk = weeklyTracker();
   html += '<div class="secttl">Estate overview</div>';
   html += '<div class="cards">'+
-    kpiCard("active","Active Leases", es.active.toLocaleString(), "excludes cancelled / finished")+
-    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly contract payment · active")+
+    kpiCard("active","All Leases", es.count.toLocaleString(), "in the Estate Report")+
+    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly contract payment · all leases")+
     kpiCard("arrears","Total Arrears", fmtMoney(Math.round(totalArr*100)/100), "across all providers")+
   '</div>';
   html += weeklyPanel(wk);
@@ -569,21 +569,14 @@ function cardHtml(k, onclick, label, n, sub, pct){
 const INACTIVE_RE = /cancel|finish|terminat|closed|void|writ|expire|ended|repossess|default/;
 function toNum(v){ return typeof v==="number" ? v : (parseFloat(v)||0); }
 function estateSummary(){
-  let active=0, value=0;
+  // all leases in the Estate Report (no status filtering)
+  let count=0, value=0;
   ["estate","ps_lease_estate"].forEach(k=>{
     const t = DATA.tabs[k]; if(!t) return;
-    const pi   = colIdx(k,["contract payment","rental"]);
-    const si   = colIdx(k,["dd status","contract status description","lease status"]);
-    const subi = colIdx(k,["subscription"]);
-    t.rows.forEach(r=>{
-      const st  = si>-1 ? String(r[si]).toLowerCase() : "";
-      const sub = subi>-1 ? String(r[subi]).toLowerCase() : "";
-      if(!INACTIVE_RE.test(st) && !INACTIVE_RE.test(sub)){
-        active++; if(pi>-1) value += toNum(r[pi]);
-      }
-    });
+    const pi = colIdx(k,["contract payment","rental"]);
+    t.rows.forEach(r=>{ count++; if(pi>-1) value += toNum(r[pi]); });
   });
-  return {active, value};
+  return {count, value};
 }
 function weeklyTracker(){
   // (a) continuing leases whose arrears grew vs the previous report

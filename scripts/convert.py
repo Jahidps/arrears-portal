@@ -17,7 +17,7 @@ Run:  python scripts/convert.py
 import json
 import re
 import sys
-from datetime import datetime, date
+from datetime import datetime, date, time
 from pathlib import Path
 
 import openpyxl
@@ -59,13 +59,19 @@ def files_sorted(pattern: str):
 def clean(v):
     if v is None:
         return ""
-    if isinstance(v, (datetime, date)):
+    if isinstance(v, datetime):
         return v.strftime("%d/%m/%Y")
+    if isinstance(v, date):
+        return v.strftime("%d/%m/%Y")
+    if isinstance(v, time):
+        return ""  # a time-only value in a date column is not usable
     if isinstance(v, float) and v == int(v):
         return int(v)
     if isinstance(v, str):
         return v.strip()
-    return v
+    if isinstance(v, (int, float, bool)):
+        return v
+    return str(v)
 
 
 def read_sheet(ws):
@@ -272,11 +278,14 @@ def main():
                              "date": file_date(ef).strftime("%B %Y")}
         wb = openpyxl.load_workbook(ef, read_only=True, data_only=True)
         eh, er = read_sheet(wb.worksheets[0])
-        # optional extra sheet holding the PS Lease estate (different columns)
+        # optional extra sheet holding the PS Lease estate (different columns);
+        # match any non-primary sheet whose name mentions PS + estate/lease
+        # e.g. "PS Lease Estate", "PS Estate -July"
         pse_h, pse_r = [], []
+        main_name = wb.sheetnames[0]
         for sn in wb.sheetnames:
-            if sn.strip().lower() in ("ps lease estate", "ps lease",
-                                      "ps_lease estate", "ps lease (estate)"):
+            low = sn.strip().lower()
+            if sn != main_name and "ps" in low and ("estate" in low or "lease" in low):
                 pse_h, pse_r = read_sheet(wb[sn])
                 break
         wb.close()

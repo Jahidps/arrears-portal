@@ -330,13 +330,16 @@ let current = "dashboard";
 
 async function init(){
   if(DATA) return;
-  if(window.PORTAL_DATA){
-    DATA = window.PORTAL_DATA;
-  }else{
-    try{
-      const r = await fetch("data.json?v=" + Date.now());
-      DATA = await r.json();
-    }catch(e){
+  // always try the freshest data.json first (cache-busted) so updates show
+  // immediately; fall back to the bundled data.js (e.g. when opened offline)
+  try{
+    const r = await fetch("data.json?v=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) throw new Error("http " + r.status);
+    DATA = await r.json();
+  }catch(e){
+    if(window.PORTAL_DATA){
+      DATA = window.PORTAL_DATA;
+    }else{
       document.getElementById("main").innerHTML = '<div class="empty">Could not load data — make sure data.js sits next to index.html.</div>';
       return;
     }

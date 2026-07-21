@@ -348,7 +348,6 @@ async function init(){
   document.getElementById("meta").innerHTML =
     "<b>Data updated</b><br>" + DATA.generated +
     (src.del_report ? "<br>Del Report: <b>" + src.del_report.date + "</b>" : "") +
-    (src.ps_lease ? "<br>PS Lease: <b>" + src.ps_lease.date + "</b>" : "") +
     (src.estate ? "<br>Estate: <b>" + src.estate.date + "</b>" : "");
   buildVirtualTabs();
   buildNav();

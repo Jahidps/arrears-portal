@@ -148,8 +148,18 @@ def build_del_tabs(path: Path):
 
 
 def build_ps_tab(path: Path):
+    """PS Lease arrears now live in a 'PS Lease' sheet INSIDE the Del Report
+    (previously a separate file). Returns an empty tab if the sheet is absent."""
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-    h, r = read_sheet(wb.worksheets[0])
+    sheet = None
+    for sn in wb.sheetnames:
+        if sn.strip().lower() in ("ps lease", "ps_lease", "ps lease arrears"):
+            sheet = sn
+            break
+    if sheet is None:
+        wb.close()
+        return {"ps_lease": {"label": "PS Lease", "columns": [], "rows": []}}
+    h, r = read_sheet(wb[sheet])
     wb.close()
     return {"ps_lease": {"label": "PS Lease", "columns": h, "rows": r}}
 
@@ -217,10 +227,9 @@ def annotate_increase(latest, previous):
 
 def main():
     del_files = files_sorted(r"del report")
-    ps_files = files_sorted(r"ps lease")
 
-    if not del_files and not ps_files:
-        sys.exit("No xlsx files found in data/ - nothing to do.")
+    if not del_files:
+        sys.exit("No Del Report xlsx files found in data/ - nothing to do.")
 
     # carry forward previously settled leases from the existing data.json
     carried = []
@@ -251,12 +260,14 @@ def main():
         sources["del_report"] = {"file": f.name,
                                  "date": file_date(f).strftime("%d/%m/%Y")}
 
-    ps_tabs, ps_prev = chain(ps_files, build_ps_tab, settled, seen)
-    if ps_tabs:
+    # PS Lease arrears come from the 'PS Lease' sheet inside the Del Report
+    ps_tabs, ps_prev = chain(del_files, build_ps_tab, settled, seen)
+    if ps_tabs and ps_tabs.get("ps_lease") and ps_tabs["ps_lease"]["rows"]:
         annotate_increase(ps_tabs, ps_prev)
         tabs.update(ps_tabs)
-        f = ps_files[-1]
-        print(f"PS Lease file   : {f.name}  ({len(ps_files)} report(s) chained)")
+        f = del_files[-1]
+        print(f"PS Lease (in Del): {len(ps_tabs['ps_lease']['rows'])} rows "
+              f"from {f.name}")
         sources["ps_lease"] = {"file": f.name,
                                "date": file_date(f).strftime("%d/%m/%Y")}
 

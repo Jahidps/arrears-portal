@@ -164,6 +164,19 @@
   .empty{text-align:center;color:var(--muted);padding:46px 0;font-size:13px}
   #loading{padding:70px;text-align:center;color:var(--muted)}
 
+  /* ================= WEEKLY TRACKER ================= */
+  .trk{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  .trkcell{border:1px solid var(--border);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,#fff, #fbfdff)}
+  .trktitle{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .trkamt{font-size:22px;font-weight:700;margin:5px 0 2px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .trksub{font-size:11.5px;color:var(--muted);font-weight:500}
+  .secttl{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:4px 2px 12px}
+
+  /* ================= NAV SEPARATOR + TOOL FRAME ================= */
+  .navsep{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:16px 10px 6px;margin-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+  .toolframe{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+  .toolframe iframe{display:block;width:100%;height:calc(100vh - 150px);min-height:560px;border:0;background:#fff}
+
   /* ================= MOBILE ================= */
   @media(max-width:880px){
     #app.on{flex-direction:column}
@@ -280,6 +293,16 @@ if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
 /* ================= CONFIG ================= */
 let DATA = null;
 const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","new_arrears","increased","settled"];
+const TOOL_TABS = [
+  {key:"vat",     label:"VAT Schedule",      src:"vat-schedule.html"},
+  {key:"invoice", label:"Rental Invoice",    src:"rental-invoice.html"},
+  {key:"interim", label:"Interim Calculator", src:"interim-calculator.html"}
+];
+const KPI = {
+  active:{m:"▦", g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
+  value:{m:"£",  g:"linear-gradient(135deg,#26c281,#0f8a57)"},
+  arrears:{m:"!",g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"}
+};
 const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears","rental"]);
 const SEARCH_ONLY_TABS = ["estate","ps_lease_estate"]; /* searchable but no sidebar tab */
 const STATUS_COLS = ["lease status","mandate status","dd status","subscription","back office stage","last status","provider"];
@@ -293,7 +316,10 @@ const PROV = {
   settled:{mark:"✓", g:"linear-gradient(135deg,#26c281,#0f8a57)"},
   increased:{mark:"↑", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
   all:{mark:"£", g:"linear-gradient(135deg,#0b1f3f,#1c4e9d)"},
-  new_arrears:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
+  new_arrears:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"},
+  vat:{mark:"VAT", g:"linear-gradient(135deg,#7048d6,#4a2fb0)"},
+  invoice:{mark:"INV", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
+  interim:{mark:"∑", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
 };
 const SICON = '<svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
 const I_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>';
@@ -361,6 +387,16 @@ function buildNav(){
     b.onclick = ()=>show(k);
     nav.appendChild(b);
   });
+  const sep = document.createElement("div");
+  sep.className = "navsep"; sep.textContent = "PS Lease Tools";
+  nav.appendChild(sep);
+  TOOL_TABS.forEach(tt=>{
+    const b = document.createElement("button");
+    b.className = "navbtn"; b.dataset.tab = tt.key;
+    b.innerHTML = tile(tt.key) + "<span>" + esc(tt.label) + "</span>";
+    b.onclick = ()=>show(tt.key);
+    nav.appendChild(b);
+  });
 }
 
 function ensureState(tab){
@@ -370,10 +406,21 @@ function ensureState(tab){
 function show(tab, presetQ){
   current = tab;
   document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  const tool = TOOL_TABS.find(t=>t.key===tab);
+  if(tool){ renderTool(tool); return; }
   if(tab==="dashboard"){ renderDashboard(); return; }
   const st = ensureState(tab);
   if(presetQ!==undefined){ st.q = presetQ; st.page = 1; }
   renderTable(tab);
+}
+function renderTool(tool){
+  const m = document.getElementById("main");
+  m.innerHTML = '<div class="pagehead">'+tile(tool.key)+'<div><h2>'+esc(tool.label)+'</h2>'+
+    '<div class="sub">'+(tool.key==="interim"
+        ? "Interim rental calculator"
+        : "Search a lease to auto-fill from the latest Estate Report · every field stays editable")+
+    '</div></div></div>'+
+    '<div class="toolframe"><iframe src="'+tool.src+'?v='+(DATA&&DATA.generated?encodeURIComponent(DATA.generated):Date.now())+'" title="'+esc(tool.label)+'"></iframe></div>';
 }
 
 /* ================= HELPERS ================= */
@@ -474,6 +521,16 @@ function renderDashboard(){
 
   html += '<div id="globalResults"></div>';
 
+  const es = estateSummary(), wk = weeklyTracker();
+  html += '<div class="secttl">Estate overview</div>';
+  html += '<div class="cards">'+
+    kpiCard("active","Active Leases", es.active.toLocaleString(), "excludes cancelled / finished")+
+    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly rental · active leases")+
+    kpiCard("arrears","Total Arrears", fmtMoney(Math.round(totalArr*100)/100), "across all providers")+
+  '</div>';
+  html += weeklyPanel(wk);
+  html += '<div class="secttl">By provider</div>';
+
   html += '<div class="cards">';
   html += cardHtml("all", null, "All providers", totalRows, fmtMoney(Math.round(totalArr*100)/100)+" arrears", "");
   cards.forEach(c=>{
@@ -504,6 +561,71 @@ function cardHtml(k, onclick, label, n, sub, pct){
     '<div class="tile" style="background:'+p.g+'">'+p.mark+'</div>'+
     '<div><div class="t">'+esc(label)+'</div><div class="n">'+Number(n).toLocaleString()+'</div>'+
     '<div class="s">'+sub+'</div>'+(pct?'<div class="pct">'+esc(pct)+'</div>':"")+'</div></div>';
+}
+/* ---- estate KPIs + weekly arrears tracker ---- */
+const INACTIVE_RE = /cancel|finished|terminat|closed|void/;
+function toNum(v){ return typeof v==="number" ? v : (parseFloat(v)||0); }
+function estateSummary(){
+  let active=0, value=0;
+  ["estate","ps_lease_estate"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const ri = colIdx(k,["rental"]);
+    const si = colIdx(k,["dd status","lease status"]);
+    const subi = colIdx(k,["subscription"]);
+    t.rows.forEach(r=>{
+      const st = si>-1 ? String(r[si]).toLowerCase() : "";
+      const sub = subi>-1 ? String(r[subi]).toLowerCase() : "";
+      if(!INACTIVE_RE.test(st) && !INACTIVE_RE.test(sub)){
+        active++; if(ri>-1) value += toNum(r[ri]);
+      }
+    });
+  });
+  return {active, value};
+}
+function weeklyTracker(){
+  let incN=0, decN=0, incAmt=0, decAmt=0, matched=0, haveAny=false;
+  ["fdgl","paytek","ps_lease"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const ai = colIdx(k,["arrears"]), pi = colIdx(k,["prev arrears"]);
+    if(ai<0 || pi<0) return;
+    t.rows.forEach(r=>{
+      const pv = r[pi];
+      if(pv==="" || pv===null || pv===undefined) return;
+      matched++; haveAny=true;
+      const dlt = toNum(r[ai]) - toNum(pv);
+      if(dlt>0.005){ incN++; incAmt+=dlt; }
+      else if(dlt<-0.005){ decN++; decAmt+=-dlt; }
+    });
+  });
+  return {incN, decN, incAmt, decAmt, net:incAmt-decAmt, matched, haveAny};
+}
+function kpiCard(k,label,big,sub){
+  const p = KPI[k];
+  return '<div class="card" style="cursor:default"><div class="tile" style="background:'+p.g+'">'+p.m+'</div>'+
+    '<div><div class="t">'+esc(label)+'</div><div class="n">'+big+'</div>'+
+    '<div class="pct">'+esc(sub)+'</div></div></div>';
+}
+function trkCell(title,amt,color,arrow,sub){
+  return '<div class="trkcell"><div class="trktitle">'+esc(title)+'</div>'+
+    '<div class="trkamt" style="color:'+color+'">'+arrow+' '+amt+'</div>'+
+    '<div class="trksub">'+esc(sub)+'</div></div>';
+}
+function weeklyPanel(wk){
+  if(!wk.haveAny)
+    return '<div class="panel"><h3>Weekly arrears tracker</h3>'+
+      '<div class="hint">No previous-week data yet — the tracker activates once a second weekly Del Report is in the portal.</div></div>';
+  const up = fmtMoney(Math.round(wk.incAmt*100)/100);
+  const dn = fmtMoney(Math.round(wk.decAmt*100)/100);
+  const net = Math.round(wk.net*100)/100;
+  const netCls = net>0?"var(--red)":(net<0?"var(--green)":"var(--muted)");
+  const netTxt = (net>0?"+":net<0?"−":"") + fmtMoney(Math.abs(net));
+  return '<div class="panel"><h3>Weekly arrears tracker '+
+    '<span class="hint" style="font-weight:400">vs previous report · '+wk.matched.toLocaleString()+' continuing leases</span></h3>'+
+    '<div class="trk">'+
+      trkCell("Increased", up, "var(--red)", "▲", wk.incN.toLocaleString()+" leases owe more")+
+      trkCell("Decreased", dn, "var(--green)", "▼", wk.decN.toLocaleString()+" leases owe less")+
+      trkCell("Net change", netTxt, netCls, net>0?"▲":net<0?"▼":"■", net>0?"arrears rising":net<0?"arrears falling":"no net change")+
+    '</div></div>';
 }
 let gTimer = null;
 function onGlobal(v){

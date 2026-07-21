@@ -434,7 +434,7 @@ function colIdx(tab, names){
   return -1;
 }
 function sumArrears(tab, rows){
-  const i = colIdx(tab,["arrears"]);
+  const i = colIdx(tab,["arrears","last arrears"]);
   if(i<0) return 0;
   return rows.reduce((a,r)=> a + (typeof r[i]==="number" ? r[i] : parseFloat(r[i])||0), 0);
 }

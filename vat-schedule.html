@@ -793,7 +793,6 @@ function download(modes,filename,btn){
   render();
 })();
 </script>
-
 <!-- ===== Portal integration: lease search + auto-fill + invoice numbering ===== -->
 <script>
 (function(){
@@ -823,19 +822,31 @@ function download(modes,filename,btn){
   var LEASES=[], INDEX={};
   function ci(cols,names){ var low=cols.map(function(c){return String(c).toLowerCase();}); for(var i=0;i<names.length;i++){var j=low.indexOf(names[i]); if(j>-1)return j;} return -1; }
   function buildIndex(data){
-    var addr={};
-    ["fdgl","paytek"].forEach(function(k){ var t=data.tabs[k]; if(!t)return; var li=ci(t.columns,["lease no."]), gi=ci(t.columns,["address"]); if(li<0)return; t.rows.forEach(function(r){ if(gi>-1&&r[gi]) addr[String(r[li])]=r[gi]; }); });
+    /* Address + Contract Payment come from the Del Report provider tabs, keyed on lease no. */
+    var addr={}, cp={};
+    ["fdgl","paytek"].forEach(function(k){ var t=data.tabs[k]; if(!t)return;
+      var li=ci(t.columns,["lease no."]), gi=ci(t.columns,["address"]), pi=ci(t.columns,["contract payment"]);
+      if(li<0)return;
+      t.rows.forEach(function(r){ var key=String(r[li]);
+        if(gi>-1 && r[gi]) addr[key]=r[gi];
+        if(pi>-1 && r[pi]!=="" && r[pi]!=null) cp[key]=r[pi];
+      });
+    });
     ["estate","ps_lease_estate"].forEach(function(k){ var t=data.tabs[k]; if(!t)return;
-      var li=ci(t.columns,["lease no","lease no.","lease"]), ni=ci(t.columns,["legal name"]), ti=ci(t.columns,["trading name"]), cmi=ci(t.columns,["commencement date"]), ri=ci(t.columns,["rental","contract payment"]);
+      var li=ci(t.columns,["lease no","lease no.","lease"]), ni=ci(t.columns,["legal name"]), cmi=ci(t.columns,["commencement date"]), ri=ci(t.columns,["rental","contract payment"]);
       t.rows.forEach(function(r){ var no=li>-1?String(r[li]):""; if(!no||INDEX[no])return;
-        var rec={no:no, name:ni>-1?r[ni]:"", trading:ti>-1?r[ti]:"", addr:addr[no]||"", comm:cmi>-1?r[cmi]:"", rental:ri>-1?r[ri]:""};
+        var rec={ no:no,
+                  name: ni>-1?r[ni]:"",
+                  addr: addr[no]||"",
+                  comm: cmi>-1?r[cmi]:"",
+                  pay:  (cp[no]!==undefined ? cp[no] : (ri>-1?r[ri]:"")) };  /* Contract Payment, fallback Rental */
         INDEX[no]=rec; LEASES.push(rec);
       });
     });
   }
   function matches(q){ q=q.toLowerCase().trim(); if(!q) return []; var out=[];
     for(var i=0;i<LEASES.length && out.length<25;i++){ var r=LEASES[i];
-      if(String(r.no).toLowerCase().indexOf(q)>-1 || String(r.name).toLowerCase().indexOf(q)>-1 || String(r.trading).toLowerCase().indexOf(q)>-1) out.push(r); }
+      if(String(r.no).toLowerCase().indexOf(q)>-1 || String(r.name).toLowerCase().indexOf(q)>-1) out.push(r); }
     return out;
   }
 
@@ -845,12 +856,13 @@ function download(modes,filename,btn){
     if(!r){ if(msg){msg.textContent="No matching lease in the Estate Report."; msg.style.color="#d92d2d";} return; }
     currentLease=r;
     byId("_leaseSearch").value = r.no;
-    var addrLine=[r.name, r.trading, r.addr].filter(Boolean).join("\n");
-    if(isVat){ setVal("agrno",r.no); setVal("billto",addrLine); if(r.comm) setVal("taxpoint",toDateInput(r.comm)); setVal("net",r.rental); }
-    if(isInv){ setVal("contract",r.no); setVal("billto",addrLine); setVal("net",r.rental); }
+    var billTo = [r.name, r.addr].filter(Boolean).join("\n");   /* Legal Name + Trading Address */
+    if(isVat){ setVal("agrno",r.no); setVal("billto",billTo); if(r.comm) setVal("taxpoint",toDateInput(r.comm)); setVal("net",r.pay); }
+    if(isInv){ setVal("contract",r.no); setVal("billto",billTo); setVal("net",r.pay); }
     var map=getMap();
     if(map[r.no]){ setVal("invno",map[r.no]); msg.innerHTML='Loaded <b>'+esc(r.name||r.no)+'</b>. Invoice already issued for this lease: <b>'+esc(map[r.no])+'</b> (edit if needed).'; msg.style.color="#c07f1d"; }
     else { setVal("invno",peekNext()); msg.innerHTML='Loaded <b>'+esc(r.name||r.no)+'</b>. Suggested invoice no: <b>'+esc(peekNext())+'</b> — click "Mark issued" once generated.'; msg.style.color="#157347"; }
+    if(!r.addr){ msg.innerHTML += '<br><span style="color:#8a94a3">No address on file for this lease — add it manually.</span>'; }
   }
   function markIssued(){
     var msg=byId("_leaseMsg"); if(!currentLease){ if(msg){msg.textContent="Search and select a lease first."; msg.style.color="#d92d2d";} return; }
@@ -878,7 +890,7 @@ function download(modes,filename,btn){
     inp.addEventListener("input", function(){
       var ms=matches(inp.value); dl.innerHTML="";
       var frag=document.createDocumentFragment();
-      ms.forEach(function(r){ var o=document.createElement("option"); o.value=r.no; o.label=(r.name||"")+(r.trading?(" — "+r.trading):""); frag.appendChild(o); });
+      ms.forEach(function(r){ var o=document.createElement("option"); o.value=r.no; o.label=(r.name||""); frag.appendChild(o); });
       dl.appendChild(frag);
       if(INDEX[inp.value.trim()]) pick(inp.value.trim());
     });
@@ -895,5 +907,4 @@ function download(modes,filename,btn){
   });
 })();
 </script>
-
 </body></html>

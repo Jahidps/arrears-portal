@@ -583,7 +583,7 @@ function estateSummary(){
   return {active, value};
 }
 function weeklyTracker(){
-  let incN=0, decN=0, incAmt=0, decAmt=0, matched=0, haveAny=false;
+  let incN=0, incAmt=0, matched=0, haveAny=false;
   ["fdgl","paytek","ps_lease"].forEach(k=>{
     const t = DATA.tabs[k]; if(!t) return;
     const ai = colIdx(k,["arrears"]), pi = colIdx(k,["prev arrears"]);
@@ -594,10 +594,19 @@ function weeklyTracker(){
       matched++; haveAny=true;
       const dlt = toNum(r[ai]) - toNum(pv);
       if(dlt>0.005){ incN++; incAmt+=dlt; }
-      else if(dlt<-0.005){ decN++; decAmt+=-dlt; }
     });
   });
-  return {incN, decN, incAmt, decAmt, net:incAmt-decAmt, matched, haveAny};
+  // amount settled since the most recent report (leases that left the arrears list)
+  let setN=0, setAmt=0;
+  const s = DATA.tabs.settled;
+  if(s && s.rows.length){
+    const di = colIdx("settled",["settled on"]), la = colIdx("settled",["last arrears"]);
+    const dmy = v=>{ const m=String(v).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?Date.UTC(+m[3],+m[2]-1,+m[1]):0; };
+    let maxT=0; if(di>-1) s.rows.forEach(r=>{ const t=dmy(r[di]); if(t>maxT) maxT=t; });
+    s.rows.forEach(r=>{ if(di<0 || dmy(r[di])===maxT){ setN++; setAmt += la>-1?toNum(r[la]):0; } });
+    if(setN) haveAny=true;
+  }
+  return {incN, incAmt, setN, setAmt, net:incAmt-setAmt, matched, haveAny};
 }
 function kpiCard(k,label,big,sub){
   const p = KPI[k];
@@ -615,15 +624,15 @@ function weeklyPanel(wk){
     return '<div class="panel"><h3>Weekly arrears tracker</h3>'+
       '<div class="hint">No previous-week data yet — the tracker activates once a second weekly Del Report is in the portal.</div></div>';
   const up = fmtMoney(Math.round(wk.incAmt*100)/100);
-  const dn = fmtMoney(Math.round(wk.decAmt*100)/100);
+  const setl = fmtMoney(Math.round(wk.setAmt*100)/100);
   const net = Math.round(wk.net*100)/100;
   const netCls = net>0?"var(--red)":(net<0?"var(--green)":"var(--muted)");
   const netTxt = (net>0?"+":net<0?"−":"") + fmtMoney(Math.abs(net));
   return '<div class="panel"><h3>Weekly arrears tracker '+
-    '<span class="hint" style="font-weight:400">vs previous report · '+wk.matched.toLocaleString()+' continuing leases</span></h3>'+
+    '<span class="hint" style="font-weight:400">vs previous report</span></h3>'+
     '<div class="trk">'+
-      trkCell("Increased", up, "var(--red)", "▲", wk.incN.toLocaleString()+" leases owe more")+
-      trkCell("Decreased", dn, "var(--green)", "▼", wk.decN.toLocaleString()+" leases owe less")+
+      trkCell("Increased", up, "var(--red)", "▲", wk.incN.toLocaleString()+" leases owe more · "+wk.matched.toLocaleString()+" continuing")+
+      trkCell("Settled", setl, "var(--green)", "✓", wk.setN.toLocaleString()+" leases cleared vs last week")+
       trkCell("Net change", netTxt, netCls, net>0?"▲":net<0?"▼":"■", net>0?"arrears rising":net<0?"arrears falling":"no net change")+
     '</div></div>';
 }

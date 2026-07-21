@@ -525,7 +525,7 @@ function renderDashboard(){
   html += '<div class="secttl">Estate overview</div>';
   html += '<div class="cards">'+
     kpiCard("active","Active Leases", es.active.toLocaleString(), "excludes cancelled / finished")+
-    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly rental · active leases")+
+    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly contract payment · active")+
     kpiCard("arrears","Total Arrears", fmtMoney(Math.round(totalArr*100)/100), "across all providers")+
   '</div>';
   html += weeklyPanel(wk);
@@ -563,27 +563,28 @@ function cardHtml(k, onclick, label, n, sub, pct){
     '<div class="s">'+sub+'</div>'+(pct?'<div class="pct">'+esc(pct)+'</div>':"")+'</div></div>';
 }
 /* ---- estate KPIs + weekly arrears tracker ---- */
-const INACTIVE_RE = /cancel|finished|terminat|closed|void/;
+const INACTIVE_RE = /cancel|finish|terminat|closed|void|writ|expire|ended|repossess|default/;
 function toNum(v){ return typeof v==="number" ? v : (parseFloat(v)||0); }
 function estateSummary(){
   let active=0, value=0;
   ["estate","ps_lease_estate"].forEach(k=>{
     const t = DATA.tabs[k]; if(!t) return;
-    const ri = colIdx(k,["rental"]);
-    const si = colIdx(k,["dd status","lease status"]);
+    const pi   = colIdx(k,["contract payment","rental"]);
+    const si   = colIdx(k,["dd status","contract status description","lease status"]);
     const subi = colIdx(k,["subscription"]);
     t.rows.forEach(r=>{
-      const st = si>-1 ? String(r[si]).toLowerCase() : "";
+      const st  = si>-1 ? String(r[si]).toLowerCase() : "";
       const sub = subi>-1 ? String(r[subi]).toLowerCase() : "";
       if(!INACTIVE_RE.test(st) && !INACTIVE_RE.test(sub)){
-        active++; if(ri>-1) value += toNum(r[ri]);
+        active++; if(pi>-1) value += toNum(r[pi]);
       }
     });
   });
   return {active, value};
 }
 function weeklyTracker(){
-  let incN=0, incAmt=0, matched=0, haveAny=false;
+  // (a) continuing leases whose arrears grew vs the previous report
+  let grewN=0, grewAmt=0, matched=0, haveAny=false;
   ["fdgl","paytek","ps_lease"].forEach(k=>{
     const t = DATA.tabs[k]; if(!t) return;
     const ai = colIdx(k,["arrears"]), pi = colIdx(k,["prev arrears"]);
@@ -593,9 +594,18 @@ function weeklyTracker(){
       if(pv==="" || pv===null || pv===undefined) return;
       matched++; haveAny=true;
       const dlt = toNum(r[ai]) - toNum(pv);
-      if(dlt>0.005){ incN++; incAmt+=dlt; }
+      if(dlt>0.005){ grewN++; grewAmt+=dlt; }
     });
   });
+  // (b) brand-new arrears this week — accumulated into "Increased"
+  let newN=0, newAmt=0;
+  ["fdgl","paytek"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const ai = colIdx(k,["arrears"]), ni = colIdx(k,["new in arrears"]);
+    if(ni<0) return;
+    t.rows.forEach(r=>{ if(String(r[ni])==="Yes"){ newN++; newAmt+=toNum(r[ai]); haveAny=true; } });
+  });
+  const incN = grewN + newN, incAmt = grewAmt + newAmt;
   // amount settled since the most recent report (leases that left the arrears list)
   let setN=0, setAmt=0;
   const s = DATA.tabs.settled;
@@ -606,7 +616,7 @@ function weeklyTracker(){
     s.rows.forEach(r=>{ if(di<0 || dmy(r[di])===maxT){ setN++; setAmt += la>-1?toNum(r[la]):0; } });
     if(setN) haveAny=true;
   }
-  return {incN, incAmt, setN, setAmt, net:incAmt-setAmt, matched, haveAny};
+  return {incN, incAmt, grewN, grewAmt, newN, newAmt, setN, setAmt, net:incAmt-setAmt, matched, haveAny};
 }
 function kpiCard(k,label,big,sub){
   const p = KPI[k];
@@ -631,7 +641,7 @@ function weeklyPanel(wk){
   return '<div class="panel"><h3>Weekly arrears tracker '+
     '<span class="hint" style="font-weight:400">vs previous report</span></h3>'+
     '<div class="trk">'+
-      trkCell("Increased", up, "var(--red)", "▲", wk.incN.toLocaleString()+" leases owe more · "+wk.matched.toLocaleString()+" continuing")+
+      trkCell("Increased", up, "var(--red)", "▲", wk.newN.toLocaleString()+" new in arrears + "+wk.grewN.toLocaleString()+" grew")+
       trkCell("Settled", setl, "var(--green)", "✓", wk.setN.toLocaleString()+" leases cleared vs last week")+
       trkCell("Net change", netTxt, netCls, net>0?"▲":net<0?"▼":"■", net>0?"arrears rising":net<0?"arrears falling":"no net change")+
     '</div></div>';

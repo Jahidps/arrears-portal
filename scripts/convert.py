@@ -164,32 +164,38 @@ def build_ps_tab(path: Path):
     return {"ps_lease": {"label": "PS Lease", "columns": h, "rows": r}}
 
 
-def chain(files, builder, settled, seen):
-    """Process files oldest->newest; diff consecutive reports into settled.
-    Returns (newest_tabs, previous_tabs) — previous is the report before the
-    newest one, used for arrears-increase tracking."""
+def chain(files, builder):
+    """Return (newest_tabs, previous_tabs) — previous is the report immediately
+    before the newest, used for arrears-increase and settled tracking."""
     prev_tabs = None
     before = None
     for f in files:
         tabs_i = builder(f)
-        if prev_tabs:
-            settled_on = file_date(f).strftime("%d/%m/%Y")
-            for k, pt in prev_tabs.items():
-                nt = tabs_i.get(k)
-                if not nt:
-                    continue
-                new_keys = lease_keys(nt)
-                li = col(pt["columns"], "lease no.", "lease")
-                if li < 0:
-                    continue
-                for r in pt["rows"]:
-                    key = str(r[li]) if li < len(r) else ""
-                    if key and key not in new_keys and key not in seen:
-                        settled.append(settled_entry(pt["label"], pt["columns"], r, settled_on))
-                        seen.add(key)
         before = prev_tabs
         prev_tabs = tabs_i
     return prev_tabs, before
+
+
+def compute_settled(latest, previous, report_date):
+    """Leases present in the PREVIOUS report but no longer in the CURRENT one —
+    i.e. they cleared their arrears. Keeps the arrears amount they last owed
+    (stored as 'Last Arrears')."""
+    rows = []
+    if not latest or not previous:
+        return rows
+    for k, pt in previous.items():
+        nt = latest.get(k)
+        if not nt:
+            continue
+        new_keys = lease_keys(nt)
+        li = col(pt["columns"], "lease no.", "lease")
+        if li < 0:
+            continue
+        for r in pt["rows"]:
+            key = str(r[li]) if li < len(r) else ""
+            if key and key not in new_keys:
+                rows.append(settled_entry(pt["label"], pt["columns"], r, report_date))
+    return rows
 
 
 def annotate_increase(latest, previous):
@@ -231,27 +237,10 @@ def main():
     if not del_files:
         sys.exit("No Del Report xlsx files found in data/ - nothing to do.")
 
-    # carry forward previously settled leases from the existing data.json
-    carried = []
-    if OUT_FILE.exists():
-        try:
-            prev = json.loads(OUT_FILE.read_text(encoding="utf-8"))
-            carried = prev.get("tabs", {}).get("settled", {}).get("rows", [])
-        except Exception:
-            carried = []
-
-    settled, seen = [], set()
-    li = SETTLED_COLS.index("Lease No.")
-    for r in carried:
-        key = str(r[li]) if li < len(r) else ""
-        if key and key not in seen:
-            settled.append(r)
-            seen.add(key)
-
     tabs = {}
     sources = {}
 
-    del_tabs, del_prev = chain(del_files, build_del_tabs, settled, seen)
+    del_tabs, del_prev = chain(del_files, build_del_tabs)
     if del_tabs:
         annotate_increase(del_tabs, del_prev)
         tabs.update(del_tabs)
@@ -261,7 +250,7 @@ def main():
                                  "date": file_date(f).strftime("%d/%m/%Y")}
 
     # PS Lease arrears come from the 'PS Lease' sheet inside the Del Report
-    ps_tabs, ps_prev = chain(del_files, build_ps_tab, settled, seen)
+    ps_tabs, ps_prev = chain(del_files, build_ps_tab)
     if ps_tabs and ps_tabs.get("ps_lease") and ps_tabs["ps_lease"]["rows"]:
         annotate_increase(ps_tabs, ps_prev)
         tabs.update(ps_tabs)
@@ -271,13 +260,10 @@ def main():
         sources["ps_lease"] = {"file": f.name,
                                "date": file_date(f).strftime("%d/%m/%Y")}
 
-    # drop settled leases that reappeared in the latest reports
-    all_new_keys = set()
-    for k in ["fdgl", "paytek", "ps_lease"]:
-        if k in tabs:
-            all_new_keys |= lease_keys(tabs[k])
-    settled = [r for r in settled if str(r[li]) not in all_new_keys]
-
+    # Settled = leases in the PREVIOUS report but gone from the CURRENT one
+    report_date = file_date(del_files[-1]).strftime("%d/%m/%Y")
+    settled = (compute_settled(del_tabs, del_prev, report_date)
+               + compute_settled(ps_tabs, ps_prev, report_date))
     tabs["settled"] = {"label": "Settled", "columns": SETTLED_COLS, "rows": settled}
 
     # ---------- estate report (monthly, searchable only — no tab) ----------

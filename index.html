@@ -70,6 +70,15 @@
   .kpi .val{font-size:23px;font-weight:800;color:#fff;margin-top:6px;line-height:1.1}
   .kpi .note{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:5px}
 
+  /* provider cards (clean white + colored strip, demo style) */
+  .pcard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 16px 15px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .pcard .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .pcard .pl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .pcard .pv{font-size:22px;font-weight:700;color:var(--navy);margin-top:5px;line-height:1.15}
+  .pcard .ps{font-size:11.5px;color:var(--red);font-weight:600;margin-top:3px}
+  .pcard .pp{font-size:10.5px;color:var(--muted);font-weight:500;margin-top:1px}
+
   .pagehead{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
   .pagehead .navtile{width:44px;height:44px;min-width:44px;border-radius:13px;font-size:14px}
   .pagehead h2{font-size:21px;font-weight:700;color:var(--navy)}
@@ -211,7 +220,7 @@
 <div id="app">
   <aside>
     <div class="logo">
-      <img src="https://paymentsave.co.uk/wp-content/uploads/2024/04/Payment-Save-Logo-White.webp" alt="Paymentsave">
+      <img src="https://paymentsave.co.uk/wp-content/uploads/2024/05/paymentsave-Logo-1024x224.png" alt="Paymentsave">
       <div class="sub">Arrears Portal</div>
     </div>
     <nav id="nav"></nav>
@@ -560,10 +569,12 @@ function renderDashboard(){
 }
 function cardHtml(k, onclick, label, n, sub, pct){
   const p = PROV[k]||PROV.all;
-  return '<div class="card" style="--blob:'+(k==="newarr"?"rgba(242,165,65,.12)":"rgba(41,171,226,.08)")+'" '+(onclick?'onclick="'+onclick+'"':"")+'>'+
-    '<div class="tile" style="background:'+p.g+'">'+p.mark+'</div>'+
-    '<div><div class="t">'+esc(label)+'</div><div class="n">'+Number(n).toLocaleString()+'</div>'+
-    '<div class="s">'+sub+'</div>'+(pct?'<div class="pct">'+esc(pct)+'</div>':"")+'</div></div>';
+  return '<div class="pcard"'+(onclick?' style="cursor:pointer" onclick="'+onclick+'"':"")+'>'+
+    '<span class="strip" style="background:'+p.g+'"></span>'+
+    '<div class="pl">'+esc(label)+(onclick?' <span style="opacity:.45">›</span>':"")+'</div>'+
+    '<div class="pv">'+Number(n).toLocaleString()+'</div>'+
+    '<div class="ps">'+sub+'</div>'+
+    (pct?'<div class="pp">'+esc(pct)+'</div>':"")+'</div>';
 }
 /* ---- estate KPIs + weekly arrears tracker ---- */
 const INACTIVE_RE = /cancel|finish|terminat|closed|void|writ|expire|ended|repossess|default/;

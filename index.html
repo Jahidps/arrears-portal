@@ -12,61 +12,63 @@
 <style>
   :root{
     --sky:#29abe2; --deep:#1c4e9d; --navy:#0b1f3f;
-    --bg:#f3f7fc; --card:#ffffff; --border:#e4ecf6; --text:#1d2b3f; --muted:#6b7f95;
+    --bg:#f7f9fc; --card:#ffffff; --border:#e4ecf6; --text:#1d2b3f; --muted:#6b7f95;
     --red:#e04f4f; --red-bg:#fdeaea; --green:#189a5c; --green-bg:#e2f6ec;
     --amber:#c07f1d; --amber-bg:#fcf2df; --grey-bg:#eef3f8;
     --purple:#7048d6; --purple-bg:#f0eafc;
-    --shadow:0 2px 12px rgba(11,31,63,.07); --shadow-lg:0 14px 40px rgba(11,31,63,.16);
+    --shadow:0 1px 3px rgba(11,31,63,.06); --shadow-lg:0 8px 26px rgba(11,31,63,.10);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{font-family:"Poppins","Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px}
   button,input,select{font-family:inherit}
+  a{color:inherit}
 
   /* ================= PASSCODE GATE ================= */
-  #gate{position:fixed;inset:0;background:linear-gradient(130deg,#081831 0%,#12356b 50%,#1d7fc0 120%);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;overflow:hidden}
-  #gate::before,#gate::after{content:"";position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(41,171,226,.28),transparent 70%)}
-  #gate::before{width:640px;height:640px;top:-220px;right:-160px}
-  #gate::after{width:520px;height:520px;bottom:-200px;left:-140px}
-  #gate .box{position:relative;background:rgba(255,255,255,.98);padding:42px 38px 34px;border-radius:22px;width:390px;max-width:100%;text-align:center;box-shadow:0 40px 100px rgba(0,0,0,.5)}
-  #gate img{height:46px;margin-bottom:16px}
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  #gate .box{position:relative;background:var(--card);padding:40px 38px 32px;border-radius:18px;width:384px;max-width:100%;text-align:center;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+  #gate img{height:40px;margin-bottom:18px}
   #gate h1{font-size:15px;color:var(--navy);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:6px}
   #gate p{color:var(--muted);font-size:12px;margin-bottom:22px}
   #gate input{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;text-align:center;letter-spacing:3px;outline:none;transition:.15s}
   #gate input:focus{border-color:var(--sky);box-shadow:0 0 0 4px rgba(41,171,226,.15)}
-  #gate button{width:100%;margin-top:14px;padding:13px;background:linear-gradient(90deg,var(--sky),var(--deep));color:#fff;border:0;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;box-shadow:0 8px 20px rgba(28,78,157,.35)}
-  #gate button:hover{transform:translateY(-1px)}
+  #gate button{width:100%;margin-top:14px;padding:13px;background:var(--deep);color:#fff;border:0;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  #gate button:hover{background:#173f80}
   #gate .err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
 
   /* ================= LAYOUT ================= */
   #app{display:none;height:100vh}
   #app.on{display:flex}
-  aside{width:250px;min-width:250px;background:linear-gradient(180deg,#081831 0%,#0e2a55 60%,#12356b 100%);display:flex;flex-direction:column;padding:24px 16px 16px;position:relative;overflow:hidden}
-  aside::before{content:"";position:absolute;width:340px;height:340px;border-radius:50%;top:-160px;right:-160px;background:radial-gradient(circle,rgba(41,171,226,.18),transparent 70%);pointer-events:none}
-  aside .logo{padding:0 6px 20px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:18px;position:relative}
-  aside .logo img{width:100%;max-width:175px;display:block}
-  aside .logo .sub{font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--sky);margin-top:9px;padding-left:2px}
-  nav{display:flex;flex-direction:column;gap:5px;flex:1;position:relative}
-  .navbtn{display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border:0;background:none;border-radius:12px;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.72);cursor:pointer;text-align:left;transition:.15s;position:relative}
-  .navbtn:hover{background:rgba(255,255,255,.07);color:#fff}
-  .navbtn.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600}
-  .navbtn.active::before{content:"";position:absolute;left:-16px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--sky)}
-  .navtile{width:34px;height:34px;min-width:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11.5px;font-weight:700;letter-spacing:.5px;box-shadow:0 4px 10px rgba(0,0,0,.25)}
-  .navtile svg{width:17px;height:17px}
-  .navbtn .cnt{margin-left:auto;background:rgba(255,255,255,.14);color:rgba(255,255,255,.85);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:600}
+  aside{width:242px;min-width:242px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:22px 14px 16px;position:relative}
+  aside .logo{padding:0 6px 18px;border-bottom:1px solid var(--border);margin-bottom:16px;position:relative}
+  aside .logo img{width:100%;max-width:158px;display:block}
+  aside .logo .sub{font-size:9.5px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-top:9px;padding-left:2px}
+  nav{display:flex;flex-direction:column;gap:3px;flex:1;position:relative}
+  .navbtn{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border:0;background:none;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;text-align:left;transition:.15s;position:relative}
+  .navbtn:hover{background:var(--grey-bg);color:var(--navy)}
+  .navbtn.active{background:#eef4fb;color:var(--deep);font-weight:600}
+  .navtile{width:26px;height:26px;min-width:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px}
+  .navtile svg{width:15px;height:15px}
+  .navbtn .cnt{margin-left:auto;background:var(--grey-bg);color:var(--muted);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:600}
   .navbtn.active .cnt{background:var(--sky);color:#fff}
-  aside .meta{border-top:1px solid rgba(255,255,255,.1);padding:14px 8px 2px;font-size:10.5px;color:rgba(255,255,255,.5);line-height:1.9;position:relative}
-  aside .meta b{color:rgba(255,255,255,.9);font-weight:600}
+  aside .meta{border-top:1px solid var(--border);padding:14px 8px 2px;font-size:10.5px;color:var(--muted);line-height:1.9;position:relative}
+  aside .meta b{color:var(--navy);font-weight:600}
 
   main{flex:1;overflow:auto;padding:26px 30px}
 
   /* ================= HERO (dashboard) ================= */
-  .hero{background:linear-gradient(120deg,#0b1f3f 0%,#1c4e9d 62%,#2a9fd8 130%);border-radius:22px;padding:30px 32px 34px;color:#fff;position:relative;overflow:hidden;margin-bottom:22px;box-shadow:var(--shadow-lg)}
-  .hero::before{content:"";position:absolute;width:420px;height:420px;border-radius:50%;top:-200px;right:-120px;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 70%)}
-  .hero::after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;bottom:-140px;right:180px;background:radial-gradient(circle,rgba(41,171,226,.35),transparent 70%)}
-  .hero h2{font-size:22px;font-weight:700;position:relative}
-  .hero .sub{font-size:12px;color:rgba(255,255,255,.75);margin:4px 0 20px;position:relative}
-  .hero .searchbox input{border:0;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .hero{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;color:var(--text);position:relative;margin-bottom:20px;box-shadow:var(--shadow)}
+  .hero h2{font-size:20px;font-weight:700;position:relative;color:var(--navy)}
+  .hero .sub{font-size:12px;color:var(--muted);margin:4px 0 18px;position:relative}
+  .hero .searchbox input{border:1px solid var(--border);background:var(--bg);box-shadow:none}
+  .hero .searchbox input:focus{background:var(--card);border-color:var(--sky);box-shadow:0 0 0 3px rgba(41,171,226,.12)}
+
+  /* ================= KPI CARDS (gradient, demo style) ================= */
+  .kpi{border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;color:#fff;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .kpi .lab{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.85)}
+  .kpi .val{font-size:23px;font-weight:800;color:#fff;margin-top:6px;line-height:1.1}
+  .kpi .note{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:5px}
 
   .pagehead{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
   .pagehead .navtile{width:44px;height:44px;min-width:44px;border-radius:13px;font-size:14px}
@@ -142,13 +144,11 @@
   /* ================= TABLES ================= */
   .tablewrap{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:auto;box-shadow:var(--shadow);max-height:calc(100vh - 285px)}
   table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
-  thead th{position:sticky;top:0;background:#fff;color:var(--navy);text-align:left;padding:12px;white-space:nowrap;cursor:pointer;user-select:none;z-index:2;font-weight:600;font-size:11px;letter-spacing:.6px;text-transform:uppercase;border-bottom:2px solid var(--border)}
-  thead th:hover{color:var(--sky)}
-  thead th .arrow{font-size:9px;margin-left:5px;color:var(--sky)}
-  tbody td{padding:9.5px 12px;border-bottom:1px solid var(--border);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
-  tbody tr:nth-child(even){background:#f8fbfe}
-  tbody tr:hover{background:#e9f4fd}
-  tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--sky)}
+  thead th{position:sticky;top:0;background:var(--grey-bg);color:var(--muted);text-align:left;padding:11px 14px;white-space:nowrap;cursor:pointer;user-select:none;z-index:2;font-weight:600;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  thead th:hover{color:var(--deep)}
+  thead th .arrow{font-size:9px;margin-left:5px;color:var(--deep)}
+  tbody td{padding:10px 14px;border-top:1px solid var(--border);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+  tbody tr:hover{background:#f7fafe}
   td.money{text-align:right;font-variant-numeric:tabular-nums}
   td.arrears{color:var(--red);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
   td a{color:var(--deep)}
@@ -170,10 +170,11 @@
   .trktitle{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
   .trkamt{font-size:22px;font-weight:700;margin:5px 0 2px;line-height:1.1;font-variant-numeric:tabular-nums}
   .trksub{font-size:11.5px;color:var(--muted);font-weight:500}
-  .secttl{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:4px 2px 12px}
+  .secttl{font-size:13.5px;font-weight:700;color:var(--navy);margin:24px 2px 12px}
+  .secttl:first-of-type{margin-top:4px}
 
   /* ================= NAV SEPARATOR + TOOL FRAME ================= */
-  .navsep{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.4);padding:16px 10px 6px;margin-top:6px;border-top:1px solid rgba(255,255,255,.1)}
+  .navsep{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:16px 10px 6px;margin-top:6px;border-top:1px solid var(--border)}
   .toolframe{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
   .toolframe iframe{display:block;width:100%;height:calc(100vh - 150px);min-height:560px;border:0;background:#fff}
 
@@ -615,9 +616,10 @@ function weeklyTracker(){
 }
 function kpiCard(k,label,big,sub){
   const p = KPI[k];
-  return '<div class="card" style="cursor:default"><div class="tile" style="background:'+p.g+'">'+p.m+'</div>'+
-    '<div><div class="t">'+esc(label)+'</div><div class="n">'+big+'</div>'+
-    '<div class="pct">'+esc(sub)+'</div></div></div>';
+  return '<div class="kpi" style="background:'+p.g+'">'+
+    '<div class="lab">'+esc(label)+'</div>'+
+    '<div class="val">'+big+'</div>'+
+    '<div class="note">'+esc(sub)+'</div></div>';
 }
 function trkCell(title,amt,color,arrow,sub){
   return '<div class="trkcell"><div class="trktitle">'+esc(title)+'</div>'+

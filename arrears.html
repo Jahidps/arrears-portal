@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Paymentsave — Arrears View</title>
+<link rel="icon" href="https://paymentsave.co.uk/wp-content/uploads/2024/05/cropped-fav-icon-270x270.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#29abe2; --deep:#1c4e9d; --navy:#0b1f3f;
+    --bg:#f7f9fc; --card:#ffffff; --border:#e4ecf6; --text:#1d2b3f; --muted:#6b7f95;
+    --red:#e04f4f; --red-bg:#fdeaea; --green:#189a5c; --green-bg:#e2f6ec;
+    --amber:#c07f1d; --amber-bg:#fcf2df; --grey-bg:#eef3f8;
+    --purple:#7048d6; --purple-bg:#f0eafc;
+    --shadow:0 1px 3px rgba(11,31,63,.06); --shadow-lg:0 8px 26px rgba(11,31,63,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:"Poppins","Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px}
+  button,input,select{font-family:inherit}
+  a{color:inherit}
+
+  /* ================= PASSCODE GATE ================= */
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  #gate .box{position:relative;background:var(--card);padding:40px 38px 32px;border-radius:18px;width:384px;max-width:100%;text-align:center;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+  #gate img{height:40px;margin-bottom:18px}
+  #gate h1{font-size:15px;color:var(--navy);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:6px}
+  #gate p{color:var(--muted);font-size:12px;margin-bottom:22px}
+  #gate input{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;text-align:center;letter-spacing:3px;outline:none;transition:.15s}
+  #gate input:focus{border-color:var(--sky);box-shadow:0 0 0 4px rgba(41,171,226,.15)}
+  #gate button{width:100%;margin-top:14px;padding:13px;background:var(--deep);color:#fff;border:0;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  #gate button:hover{background:#173f80}
+  #gate .err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+
+  /* ================= LAYOUT ================= */
+  #app{display:none;height:100vh}
+  #app.on{display:flex}
+  aside{width:242px;min-width:242px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:22px 14px 16px;position:relative}
+  aside .logo{padding:0 6px 18px;border-bottom:1px solid var(--border);margin-bottom:16px;position:relative}
+  aside .logo img{width:100%;max-width:158px;display:block}
+  aside .logo .sub{font-size:9.5px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-top:9px;padding-left:2px}
+  nav{display:flex;flex-direction:column;gap:3px;flex:1;position:relative}
+  .navbtn{display:flex;align-items:center;gap:11px;width:100%;padding:8px 10px;border:0;background:none;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;text-align:left;transition:.15s;position:relative}
+  .navbtn:hover{background:var(--grey-bg);color:var(--navy)}
+  .navbtn.active{background:#eef4fb;color:var(--deep);font-weight:600}
+  .navtile{width:26px;height:26px;min-width:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;letter-spacing:.3px}
+  .navtile svg{width:15px;height:15px}
+  .navbtn .cnt{margin-left:auto;background:var(--grey-bg);color:var(--muted);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:600}
+  .navbtn.active .cnt{background:var(--sky);color:#fff}
+  aside .meta{border-top:1px solid var(--border);padding:14px 8px 2px;font-size:10.5px;color:var(--muted);line-height:1.9;position:relative}
+  aside .meta b{color:var(--navy);font-weight:600}
+
+  main{flex:1;overflow:auto;padding:26px 30px}
+
+  /* ================= HERO (dashboard) ================= */
+  .hero{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;color:var(--text);position:relative;margin-bottom:20px;box-shadow:var(--shadow)}
+  .hero h2{font-size:20px;font-weight:700;position:relative;color:var(--navy)}
+  .hero .sub{font-size:12px;color:var(--muted);margin:4px 0 18px;position:relative}
+  .hero .searchbox input{border:1px solid var(--border);background:var(--bg);box-shadow:none}
+  .hero .searchbox input:focus{background:var(--card);border-color:var(--sky);box-shadow:0 0 0 3px rgba(41,171,226,.12)}
+
+  /* ================= KPI CARDS (gradient, demo style) ================= */
+  .kpi{border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;color:#fff;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .kpi .lab{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.85)}
+  .kpi .val{font-size:23px;font-weight:800;color:#fff;margin-top:6px;line-height:1.1}
+  .kpi .note{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:5px}
+
+  /* provider cards (clean white + colored strip, demo style) */
+  .pcard{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px 16px 15px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+  .pcard:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .pcard .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+  .pcard .pl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+  .pcard .pv{font-size:22px;font-weight:700;color:var(--navy);margin-top:5px;line-height:1.15}
+  .pcard .ps{font-size:11.5px;color:var(--red);font-weight:600;margin-top:3px}
+  .pcard .pp{font-size:10.5px;color:var(--muted);font-weight:500;margin-top:1px}
+
+  .pagehead{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .pagehead .navtile{width:44px;height:44px;min-width:44px;border-radius:13px;font-size:14px}
+  .pagehead h2{font-size:21px;font-weight:700;color:var(--navy)}
+  .pagehead .sub{font-size:12px;color:var(--muted);margin-top:1px}
+
+  /* ================= SEARCH ================= */
+  .searchbox{position:relative;flex:1;min-width:230px}
+  .searchbox .sicon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted);pointer-events:none;z-index:1}
+  .searchbox input{width:100%;padding:11px 40px;border:1.5px solid var(--border);border-radius:12px;font-size:13px;background:#fff;outline:none;transition:.15s}
+  .searchbox input:focus{border-color:var(--sky);box-shadow:0 0 0 4px rgba(41,171,226,.14)}
+  .searchbox .clearbtn{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:0;border-radius:50%;background:var(--grey-bg);color:var(--muted);font-size:12px;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;transition:.12s;z-index:1}
+  .searchbox .clearbtn:hover{background:var(--red-bg);color:var(--red)}
+  .searchbox.hasval .clearbtn{display:flex}
+  .searchbox.big input{padding:15px 46px;font-size:14.5px;border-radius:14px}
+
+  /* ================= CARDS ================= */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;margin-bottom:22px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px;cursor:pointer;box-shadow:var(--shadow);transition:.18s;display:flex;gap:14px;align-items:center;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+  .card::after{content:"";position:absolute;width:130px;height:130px;border-radius:50%;top:-70px;right:-50px;background:var(--blob,rgba(41,171,226,.08))}
+  .card .tile{width:48px;height:48px;min-width:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;box-shadow:0 6px 14px rgba(11,31,63,.2)}
+  .card .tile svg{width:22px;height:22px}
+  .card .t{font-size:10.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+  .card .n{font-size:23px;font-weight:700;color:var(--navy);line-height:1.15}
+  .card .s{font-size:11.5px;color:var(--red);font-weight:600}
+  .card .pct{font-size:10.5px;color:var(--muted);font-weight:500}
+
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:20px 22px;margin-bottom:22px;box-shadow:var(--shadow)}
+  .panel h3{font-size:14.5px;font-weight:600;color:var(--navy);margin-bottom:14px}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px}
+  #globalResults .grp{margin-bottom:18px}
+  #globalResults h4{font-size:12.5px;color:var(--navy);font-weight:600;margin-bottom:8px}
+  #globalResults h4 .more{font-weight:500;color:var(--sky);cursor:pointer;font-size:11.5px;margin-left:8px}
+  #globalResults h4 .more:hover{text-decoration:underline}
+  .bar-row{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+  .bar-row .lbl{width:110px;font-size:12px;color:var(--muted);text-align:right;font-weight:500;display:flex;align-items:center;justify-content:flex-end;gap:7px}
+  .bar-row .dot{width:9px;height:9px;border-radius:3px}
+  .bar-row .track{flex:1;background:var(--grey-bg);border-radius:8px;height:26px}
+  .bar-row .fill{height:100%;border-radius:8px;min-width:3px;transition:width .5s ease;box-shadow:inset 0 -6px 12px rgba(255,255,255,.25)}
+  .bar-row .val{font-size:12px;font-weight:600;color:var(--navy);width:110px}
+
+  /* ================= TOOLBAR ================= */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar .stat{font-size:12px;color:var(--muted);white-space:nowrap;padding:0 4px}
+  .toolbar .stat b{color:var(--red)}
+  .tbtn{padding:10px 15px;border:1.5px solid var(--border);background:#fff;border-radius:12px;cursor:pointer;font-size:12.5px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:7px;transition:.12s;position:relative}
+  .tbtn:hover{border-color:var(--sky);color:var(--deep)}
+  .tbtn svg{width:14px;height:14px}
+  .tbtn .fcount{background:linear-gradient(90deg,var(--sky),var(--deep));color:#fff;border-radius:20px;padding:1px 8px;font-size:10.5px;font-weight:700}
+
+  /* dropdown panels */
+  .ddwrap{position:relative}
+  .ddpanel{display:none;position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);padding:14px;z-index:50;width:265px;max-height:360px;overflow:auto}
+  .ddpanel.open{display:block}
+  .ddpanel .sec{font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:10px 0 5px;padding-top:10px;border-top:1px solid var(--border)}
+  .ddpanel .sec:first-child{margin-top:0;padding-top:0;border-top:0}
+  .ddpanel label{display:flex;align-items:center;gap:9px;padding:6px 7px;font-size:12.5px;border-radius:8px;cursor:pointer}
+  .ddpanel label:hover{background:var(--bg)}
+  .ddpanel input{accent-color:var(--deep);width:14px;height:14px}
+  .ddpanel .dd-actions{display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:12px}
+  .ddpanel .dd-actions button{flex:1;padding:8px;border:1px solid var(--border);background:#fff;border-radius:9px;font-size:11.5px;cursor:pointer;color:var(--deep);font-weight:600}
+  .ddpanel .dd-actions button:hover{background:var(--bg)}
+
+  /* filter chips */
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;min-height:0}
+  .chip{display:flex;align-items:center;gap:7px;background:linear-gradient(90deg,rgba(41,171,226,.13),rgba(28,78,157,.10));border:1px solid rgba(41,171,226,.35);color:var(--deep);border-radius:20px;padding:5px 7px 5px 12px;font-size:11.5px;font-weight:600}
+  .chip button{border:0;background:rgba(28,78,157,.12);color:var(--deep);width:18px;height:18px;border-radius:50%;font-size:10px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
+  .chip button:hover{background:var(--red);color:#fff}
+  .chip.clearall{background:var(--red-bg);border-color:rgba(224,79,79,.3);color:var(--red);cursor:pointer;padding:5px 12px}
+  .chip.clearall:hover{background:var(--red);color:#fff}
+
+  /* ================= TABLES ================= */
+  .tablewrap{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:auto;box-shadow:var(--shadow);max-height:calc(100vh - 285px)}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+  thead th{position:sticky;top:0;background:var(--grey-bg);color:var(--muted);text-align:left;padding:11px 14px;white-space:nowrap;cursor:pointer;user-select:none;z-index:2;font-weight:600;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  thead th:hover{color:var(--deep)}
+  thead th .arrow{font-size:9px;margin-left:5px;color:var(--deep)}
+  tbody td{padding:10px 14px;border-top:1px solid var(--border);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+  tbody tr:hover{background:#f7fafe}
+  td.money{text-align:right;font-variant-numeric:tabular-nums}
+  td.arrears{color:var(--red);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  td a{color:var(--deep)}
+  .badge{padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:600;display:inline-block}
+  .b-red{background:var(--red-bg);color:var(--red)} .b-green{background:var(--green-bg);color:var(--green)}
+  .b-amber{background:var(--amber-bg);color:var(--amber)} .b-grey{background:var(--grey-bg);color:var(--muted)}
+  .b-blue{background:rgba(41,171,226,.15);color:var(--deep)} .b-purple{background:var(--purple-bg);color:var(--purple)}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:center;padding:14px}
+  .pager button{padding:7px 15px;border:1.5px solid var(--border);background:#fff;border-radius:10px;cursor:pointer;font-size:12px;font-weight:500;color:var(--deep)}
+  .pager button:hover:not(:disabled){border-color:var(--sky)}
+  .pager button:disabled{opacity:.35;cursor:default}
+  .pager span{font-size:12px;color:var(--muted)}
+  .empty{text-align:center;color:var(--muted);padding:46px 0;font-size:13px}
+  #loading{padding:70px;text-align:center;color:var(--muted)}
+
+  /* ================= WEEKLY TRACKER ================= */
+  .trk{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  .trkcell{border:1px solid var(--border);border-radius:14px;padding:16px 18px;background:linear-gradient(180deg,#fff, #fbfdff)}
+  .trktitle{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .trkamt{font-size:22px;font-weight:700;margin:5px 0 2px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .trksub{font-size:11.5px;color:var(--muted);font-weight:500}
+  .secttl{font-size:13.5px;font-weight:700;color:var(--navy);margin:24px 2px 12px}
+  .secttl:first-of-type{margin-top:4px}
+
+  /* ================= NAV SEPARATOR + TOOL FRAME ================= */
+  .navsep{font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:16px 10px 6px;margin-top:6px;border-top:1px solid var(--border)}
+  .toolframe{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow)}
+  .toolframe iframe{display:block;width:100%;height:calc(100vh - 150px);min-height:560px;border:0;background:#fff}
+
+  /* ================= MOBILE ================= */
+  @media(max-width:880px){
+    #app.on{flex-direction:column}
+    aside{width:100%;min-width:0;flex-direction:row;align-items:center;padding:10px 12px;gap:8px;overflow-x:auto}
+    aside .logo{padding:0;border:0;margin:0;flex:none}
+    aside .logo img{max-width:118px}
+    aside .logo .sub{display:none}
+    nav{flex-direction:row;flex:none}
+    .navbtn{padding:7px 9px;white-space:nowrap}
+    .navbtn.active::before{display:none}
+    aside .meta{display:none}
+    main{padding:16px 14px}
+    .tablewrap{max-height:none}
+    .hero{padding:22px 18px}
+  }
+</style>
+<style>/* embed: passcode removed, parent handles auth; inner sidebar hidden (parent drives tabs); keep gradient KPIs */#gate{display:none!important}#app{display:flex!important}aside{display:none!important}main{flex:1 1 auto!important;width:100%!important}</style>
+</head>
+<body>
+
+<div id="gate" style="display:none" aria-hidden="true">
+  <div class="box">
+    <img src="https://paymentsave.co.uk/wp-content/uploads/2024/05/paymentsave-Logo-1024x224.png" alt="Paymentsave">
+    <h1>Arrears View</h1>
+    <p>Enter the team passcode to continue</p>
+    <input type="password" id="pass" placeholder="••••••••" autofocus>
+    <button onclick="checkPass()">Sign in</button>
+    <div class="err" id="passErr"></div>
+  </div>
+</div>
+
+<div id="app" class="on">
+  <aside>
+    <div class="logo">
+      <img src="https://paymentsave.co.uk/wp-content/uploads/2024/05/paymentsave-Logo-1024x224.png" alt="Paymentsave">
+      <div class="sub">Arrears View</div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="meta" id="meta"></div>
+  </aside>
+  <main id="main"><div id="loading">Loading data…</div></main>
+</div>
+
+<script src="arrears_data.js"></script>
+<script>
+/* ================= PASSCODE ================= */
+const PASS_HASH = "260f8baedb27a0588f2a461951d924462158c40a9ad64da44da03c0367072ed4";
+function sha256js(ascii){
+  function rr(v,a){return(v>>>a)|(v<<(32-a));}
+  let maxWord=Math.pow(2,32),result="",words=[],asciiBitLength=ascii.length*8;
+  let hash=sha256js.h=sha256js.h||[],k=sha256js.k=sha256js.k||[],primeCounter=k.length;
+  const isComposite={};
+  for(let candidate=2;primeCounter<64;candidate++){
+    if(!isComposite[candidate]){
+      for(let i=0;i<313;i+=candidate)isComposite[i]=candidate;
+      hash[primeCounter]=(Math.pow(candidate,.5)*maxWord)|0;
+      k[primeCounter++]=(Math.pow(candidate,1/3)*maxWord)|0;
+    }
+  }
+  ascii+="\x80";
+  while(ascii.length%64-56)ascii+="\x00";
+  for(let i=0;i<ascii.length;i++){
+    const j=ascii.charCodeAt(i);
+    if(j>>8)return"";
+    words[i>>2]|=j<<((3-i)%4)*8;
+  }
+  words[words.length]=(asciiBitLength/maxWord)|0;
+  words[words.length]=asciiBitLength;
+  for(let j=0;j<words.length;){
+    const w=words.slice(j,j+=16),oldHash=hash.slice(0,8);
+    for(let i=0;i<64;i++){
+      const w15=w[i-15],w2=w[i-2];
+      const a=hash[0],e=hash[4];
+      const temp1=hash[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&hash[5])^((~e)&hash[6]))+k[i]
+        +(w[i]=(i<16)?w[i]:(w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
+      const temp2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(temp1+temp2)|0].concat(hash);
+      hash[4]=(hash[4]+temp1)|0;
+    }
+    for(let i=0;i<8;i++)hash[i]=(hash[i]+oldHash[i])|0;
+  }
+  for(let i=0;i<8;i++)for(let j=3;j+1;j--){
+    const b=(hash[i]>>(j*8))&255;
+    result+=((b<16)?0:"")+b.toString(16);
+  }
+  return result;
+}
+async function sha256(s){
+  if(window.crypto && crypto.subtle){
+    try{
+      const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+    }catch(e){}
+  }
+  return sha256js(s);
+}
+async function checkPass(){
+  const v = document.getElementById("pass").value;
+  if(await sha256(v) === PASS_HASH){
+    sessionStorage.setItem("psav_auth","1");
+    unlock();
+  }else{
+    document.getElementById("passErr").textContent = "Incorrect passcode";
+    document.getElementById("pass").value = "";
+  }
+}
+document.getElementById("pass").addEventListener("keydown", e=>{ if(e.key==="Enter") checkPass(); });
+function unlock(){
+  document.getElementById("gate").style.display="none";
+  document.getElementById("app").classList.add("on");
+  init();
+}
+if(sessionStorage.getItem("psav_auth")==="1") setTimeout(unlock, 0);
+
+/* ================= CONFIG ================= */
+let DATA = null;
+const TAB_ORDER = ["dashboard","fdgl","paytek","ps_lease","new_arrears","increased","settled"];
+const TOOL_TABS = [];
+const KPI = {
+  active:{m:"▦", g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
+  value:{m:"£",  g:"linear-gradient(135deg,#26c281,#0f8a57)"},
+  arrears:{m:"!",g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"}
+};
+const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears","rental"]);
+const SEARCH_ONLY_TABS = ["estate","ps_lease_estate"]; /* searchable but no sidebar tab */
+const STATUS_COLS = ["lease status","mandate status","dd status","subscription","back office stage","last status","provider"];
+const TAG_COLS = ["ps team","new in arrears","increased"];
+const DEFAULT_HIDDEN = new Set(["term","business number","address","buyback","amount","pm","partner's email"]);
+const PROV = {
+  dashboard:{mark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>', g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
+  fdgl:{mark:"FD", g:"linear-gradient(135deg,#33b1e8,#1a56ad)"},
+  paytek:{mark:"PT", g:"linear-gradient(135deg,#8a63f4,#5433b8)"},
+  ps_lease:{mark:"PS", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
+  settled:{mark:"✓", g:"linear-gradient(135deg,#26c281,#0f8a57)"},
+  increased:{mark:"↑", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
+  all:{mark:"£", g:"linear-gradient(135deg,#0b1f3f,#1c4e9d)"},
+  new_arrears:{mark:"!", g:"linear-gradient(135deg,#f2a541,#d96c2c)"},
+  vat:{mark:"VAT", g:"linear-gradient(135deg,#7048d6,#4a2fb0)"},
+  invoice:{mark:"INV", g:"linear-gradient(135deg,#1fc8a9,#0d8b71)"},
+  interim:{mark:"∑", g:"linear-gradient(135deg,#f2a541,#d96c2c)"}
+};
+const SICON = '<svg class="sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+const I_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>';
+const I_COLS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18"/></svg>';
+const I_EXPORT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>';
+const state = {};
+let current = "dashboard";
+
+async function init(){
+  if(DATA) return;
+  // always try the freshest data.json first (cache-busted) so updates show
+  // immediately; fall back to the bundled data.js (e.g. when opened offline)
+  try{
+    const r = await fetch("data.json?v=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) throw new Error("http " + r.status);
+    DATA = await r.json();
+  }catch(e){
+    if(window.PORTAL_DATA){
+      DATA = window.PORTAL_DATA;
+    }else{
+      document.getElementById("main").innerHTML = '<div class="empty">Could not load data — make sure data.js sits next to index.html.</div>';
+      return;
+    }
+  }
+  const src = DATA.sources||{};
+  document.getElementById("meta").innerHTML =
+    "<b>Data updated</b><br>" + DATA.generated +
+    (src.del_report ? "<br>Del Report: <b>" + src.del_report.date + "</b>" : "") +
+    (src.estate ? "<br>Estate: <b>" + src.estate.date + "</b>" : "");
+  buildVirtualTabs();
+  buildNav();
+  show("dashboard");
+}
+
+/* combined one-page views built from FDGL + Paytek rows */
+function buildVirtualTabs(){
+  [["new_arrears","New in Arrears","new in arrears"],
+   ["increased","Arrears Increased","increased"]].forEach(def=>{
+    const [key,label,colName] = def;
+    const src = ["fdgl","paytek"].filter(k=>DATA.tabs[k]);
+    if(!src.length) return;
+    const base = DATA.tabs[src[0]].columns;
+    const rows = [];
+    src.forEach(k=>{
+      const t = DATA.tabs[k], i = colIdx(k,[colName]);
+      if(i<0) return;
+      t.rows.forEach(r=>{ if(String(r[i])==="Yes") rows.push([t.label, ...r]); });
+    });
+    DATA.tabs[key] = {label, columns:["Provider", ...base], rows};
+  });
+}
+
+function tile(k, small){
+  const p = PROV[k]||PROV.all;
+  return '<span class="navtile" style="background:'+p.g+'">'+p.mark+'</span>';
+}
+function buildNav(){
+  const nav = document.getElementById("nav");
+  nav.innerHTML = "";
+  TAB_ORDER.forEach(k=>{
+    if(k!=="dashboard" && !DATA.tabs[k]) return;
+    const b = document.createElement("button");
+    b.className = "navbtn";
+    b.dataset.tab = k;
+    b.innerHTML = tile(k) + "<span>" + (k==="dashboard" ? "Dashboard" : esc(DATA.tabs[k].label)) + "</span>" +
+      (k==="dashboard" ? "" : '<span class="cnt">' + DATA.tabs[k].rows.length + "</span>");
+    b.onclick = ()=>show(k);
+    nav.appendChild(b);
+  });
+  const sep = document.createElement("div");
+  sep.className = "navsep"; sep.textContent = "PS Lease Tools";
+  if(TOOL_TABS.length) nav.appendChild(sep);
+  TOOL_TABS.forEach(tt=>{
+    const b = document.createElement("button");
+    b.className = "navbtn"; b.dataset.tab = tt.key;
+    b.innerHTML = tile(tt.key) + "<span>" + esc(tt.label) + "</span>";
+    b.onclick = ()=>show(tt.key);
+    nav.appendChild(b);
+  });
+}
+
+function ensureState(tab){
+  if(!state[tab]) state[tab] = {q:"", facets:{}, sortCol:-1, sortDir:1, page:1, colVis:loadCols(tab)};
+  return state[tab];
+}
+function show(tab, presetQ){
+  current = tab;
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  const tool = TOOL_TABS.find(t=>t.key===tab);
+  if(tool){ renderTool(tool); return; }
+  if(tab==="dashboard"){ renderDashboard(); return; }
+  const st = ensureState(tab);
+  if(presetQ!==undefined){ st.q = presetQ; st.page = 1; }
+  renderTable(tab);
+}
+function renderTool(tool){
+  const m = document.getElementById("main");
+  m.innerHTML = '<div class="pagehead">'+tile(tool.key)+'<div><h2>'+esc(tool.label)+'</h2>'+
+    '<div class="sub">'+(tool.key==="interim"
+        ? "Interim rental calculator"
+        : "Search a lease to auto-fill from the latest Estate Report · every field stays editable")+
+    '</div></div></div>'+
+    '<div class="toolframe"><iframe src="'+tool.src+'?v='+(DATA&&DATA.generated?encodeURIComponent(DATA.generated):Date.now())+'" title="'+esc(tool.label)+'"></iframe></div>';
+}
+
+/* ================= HELPERS ================= */
+const esc = s => String(s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtMoney = v => (typeof v==="number") ? "£"+v.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2}) : esc(v);
+function colIdx(tab, names){
+  const cols = DATA.tabs[tab].columns.map(c=>c.toLowerCase());
+  for(const n of names){ const i = cols.indexOf(n); if(i>-1) return i; }
+  return -1;
+}
+function sumArrears(tab, rows){
+  const i = colIdx(tab,["arrears","last arrears"]);
+  if(i<0) return 0;
+  return rows.reduce((a,r)=> a + (typeof r[i]==="number" ? r[i] : parseFloat(r[i])||0), 0);
+}
+function countTag(tab, name){
+  const i = colIdx(tab,[name]);
+  if(i<0) return 0;
+  return DATA.tabs[tab].rows.reduce((a,r)=>a+(String(r[i])==="Yes"?1:0),0);
+}
+function badge(v, colName){
+  const s = String(v).toLowerCase();
+  let cls = "b-grey";
+  if(colName==="ps team" && s==="yes") cls = "b-blue";
+  else if(colName==="new in arrears" && s==="yes") cls = "b-purple";
+  else if(colName==="increased" && s==="yes") cls = "b-red";
+  else if(/default|cancel|closed|terminated|not transacting/.test(s)) cls = "b-red";
+  else if(/active|transacting|live|^paid|^yes$/.test(s)) cls = "b-green";
+  else if(/arrears|pending|failed|expired/.test(s)) cls = "b-amber";
+  return '<span class="badge '+cls+'">'+esc(v)+"</span>";
+}
+function loadCols(tab){
+  try{
+    const saved = localStorage.getItem("psav_cols3_"+tab);
+    if(saved) return new Set(JSON.parse(saved));
+  }catch(e){}
+  const vis = new Set();
+  DATA.tabs[tab].columns.forEach((c,i)=>{ if(!DEFAULT_HIDDEN.has(c.toLowerCase())) vis.add(i); });
+  return vis;
+}
+function saveCols(tab){
+  try{ localStorage.setItem("psav_cols3_"+tab, JSON.stringify([...state[tab].colVis])); }catch(e){}
+}
+function facetCount(st){
+  return Object.values(st.facets).reduce((a,s)=>a+s.size,0);
+}
+function filterRows(tab){
+  const t = DATA.tabs[tab], st = state[tab];
+  const q = st.q.trim().toLowerCase();
+  let rows = t.rows;
+  for(const [ci, vals] of Object.entries(st.facets)){
+    if(vals.size) rows = rows.filter(r=>vals.has(String(r[ci])));
+  }
+  if(q) rows = rows.filter(r=>r.some(c=>String(c).toLowerCase().includes(q)));
+  if(st.sortCol>-1){
+    const i = st.sortCol, d = st.sortDir;
+    rows = [...rows].sort((a,b)=>{
+      const x=a[i], y=b[i];
+      if(typeof x==="number" && typeof y==="number") return (x-y)*d;
+      return String(x).localeCompare(String(y),undefined,{numeric:true})*d;
+    });
+  }
+  return rows;
+}
+function searchBox(id, val, oninput, big, ph){
+  return '<div class="searchbox'+(big?' big':'')+(val?' hasval':'')+'" id="sb_'+id+'">'+SICON+
+    '<input type="text" id="in_'+id+'" placeholder="'+esc(ph)+'" value="'+esc(val)+'" oninput="'+oninput+'">'+
+    '<button class="clearbtn" title="Clear" onclick="clearSearch(\''+id+'\')">✕</button></div>';
+}
+function clearSearch(id){
+  const inp = document.getElementById("in_"+id);
+  inp.value = "";
+  inp.dispatchEvent(new Event("input"));
+  inp.focus();
+}
+function syncClear(id){
+  const sb = document.getElementById("sb_"+id);
+  if(sb) sb.classList.toggle("hasval", document.getElementById("in_"+id).value.length>0);
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(){
+  const m = document.getElementById("main");
+  const provs = ["fdgl","paytek","ps_lease"].filter(k=>DATA.tabs[k]);
+  let totalRows = 0, totalArr = 0;
+  const cards = provs.map(k=>{
+    const t = DATA.tabs[k], arr = sumArrears(k, t.rows);
+    totalRows += t.rows.length; totalArr += arr;
+    return {k, label:t.label, n:t.rows.length, arr};
+  });
+  const naF = countTag("fdgl","new in arrears"), naP = countTag("paytek","new in arrears");
+  const naCount = DATA.tabs.new_arrears ? DATA.tabs.new_arrears.rows.length : naF+naP;
+
+  let html = '<div class="hero"><h2>Arrears Dashboard</h2>'+
+    '<div class="sub">Live overview across all lease providers · data updated '+esc(DATA.generated)+'</div>'+
+    searchBox("global", state._gq||"", "onGlobal(this.value)", true, "Search everything — MID, name, lease no, partner, estate terms paid, rental…")+
+    '</div>';
+
+  html += '<div id="globalResults"></div>';
+
+  const es = estateSummary(), wk = weeklyTracker();
+  html += '<div class="secttl">Estate overview</div>';
+  html += '<div class="cards">'+
+    kpiCard("active","All Leases", es.count.toLocaleString(), "in the Estate Report")+
+    kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly contract payment · all leases")+
+    kpiCard("arrears","Total Arrears", fmtMoney(Math.round(totalArr*100)/100), "across all providers")+
+  '</div>';
+  html += weeklyPanel(wk);
+  html += '<div class="secttl">By provider</div>';
+
+  html += '<div class="cards">';
+  html += cardHtml("all", null, "All providers", totalRows, fmtMoney(Math.round(totalArr*100)/100)+" arrears", "");
+  cards.forEach(c=>{
+    const pct = totalArr ? (c.arr/totalArr*100).toFixed(1)+"% of arrears" : "";
+    html += cardHtml(c.k, "show('"+c.k+"')", c.label, c.n, fmtMoney(Math.round(c.arr*100)/100)+" arrears", pct);
+  });
+  html += cardHtml("new_arrears", "show('new_arrears')", "New in Arrears", naCount, naF+" FDGL · "+naP+" Paytek", "this week");
+  const incCount = DATA.tabs.increased ? DATA.tabs.increased.rows.length : 0;
+  html += cardHtml("increased", "show('increased')", "Arrears Increased", incCount, "owe more than last report", "vs previous week");
+  if(DATA.tabs.settled)
+    html += cardHtml("settled", "show('settled')", "Settled", DATA.tabs.settled.rows.length, "no longer in the report", "tracked weekly");
+  html += "</div>";
+
+  const maxArr = Math.max(...cards.map(c=>c.arr), 1);
+  html += '<div class="panel"><h3>Total arrears by provider</h3>';
+  cards.forEach(c=>{
+    html += '<div class="bar-row"><div class="lbl"><span class="dot" style="background:'+PROV[c.k].g+'"></span>'+esc(c.label)+'</div>'+
+      '<div class="track"><div class="fill" style="width:'+(c.arr/maxArr*100).toFixed(1)+'%;background:'+PROV[c.k].g+'"></div></div>'+
+      '<div class="val">'+fmtMoney(Math.round(c.arr*100)/100)+'</div></div>';
+  });
+  html += "</div>";
+  m.innerHTML = html;
+  if(state._gq) globalSearch(state._gq);
+}
+function cardHtml(k, onclick, label, n, sub, pct){
+  const p = PROV[k]||PROV.all;
+  return '<div class="pcard"'+(onclick?' style="cursor:pointer" onclick="'+onclick+'"':"")+'>'+
+    '<span class="strip" style="background:'+p.g+'"></span>'+
+    '<div class="pl">'+esc(label)+(onclick?' <span style="opacity:.45">›</span>':"")+'</div>'+
+    '<div class="pv">'+Number(n).toLocaleString()+'</div>'+
+    '<div class="ps">'+sub+'</div>'+
+    (pct?'<div class="pp">'+esc(pct)+'</div>':"")+'</div>';
+}
+/* ---- estate KPIs + weekly arrears tracker ---- */
+const INACTIVE_RE = /cancel|finish|terminat|closed|void|writ|expire|ended|repossess|default/;
+function toNum(v){ return typeof v==="number" ? v : (parseFloat(v)||0); }
+function estateSummary(){
+  // all leases in the Estate Report (no status filtering)
+  let count=0, value=0;
+  ["estate","ps_lease_estate"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const pi = colIdx(k,["contract payment","rental"]);
+    t.rows.forEach(r=>{ count++; if(pi>-1) value += toNum(r[pi]); });
+  });
+  return {count, value};
+}
+function weeklyTracker(){
+  // (a) continuing leases whose arrears grew vs the previous report
+  let grewN=0, grewAmt=0, matched=0, haveAny=false;
+  ["fdgl","paytek","ps_lease"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const ai = colIdx(k,["arrears"]), pi = colIdx(k,["prev arrears"]);
+    if(ai<0 || pi<0) return;
+    t.rows.forEach(r=>{
+      const pv = r[pi];
+      if(pv==="" || pv===null || pv===undefined) return;
+      matched++; haveAny=true;
+      const dlt = toNum(r[ai]) - toNum(pv);
+      if(dlt>0.005){ grewN++; grewAmt+=dlt; }
+    });
+  });
+  // (b) brand-new arrears this week — accumulated into "Increased"
+  let newN=0, newAmt=0;
+  ["fdgl","paytek"].forEach(k=>{
+    const t = DATA.tabs[k]; if(!t) return;
+    const ai = colIdx(k,["arrears"]), ni = colIdx(k,["new in arrears"]);
+    if(ni<0) return;
+    t.rows.forEach(r=>{ if(String(r[ni])==="Yes"){ newN++; newAmt+=toNum(r[ai]); haveAny=true; } });
+  });
+  const incN = grewN + newN, incAmt = grewAmt + newAmt;
+  // amount settled since the most recent report (leases that left the arrears list)
+  let setN=0, setAmt=0;
+  const s = DATA.tabs.settled;
+  if(s && s.rows.length){
+    const di = colIdx("settled",["settled on"]), la = colIdx("settled",["last arrears"]);
+    const dmy = v=>{ const m=String(v).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?Date.UTC(+m[3],+m[2]-1,+m[1]):0; };
+    let maxT=0; if(di>-1) s.rows.forEach(r=>{ const t=dmy(r[di]); if(t>maxT) maxT=t; });
+    s.rows.forEach(r=>{ if(di<0 || dmy(r[di])===maxT){ setN++; setAmt += la>-1?toNum(r[la]):0; } });
+    if(setN) haveAny=true;
+  }
+  return {incN, incAmt, grewN, grewAmt, newN, newAmt, setN, setAmt, net:incAmt-setAmt, matched, haveAny};
+}
+function kpiCard(k,label,big,sub){
+  const p = KPI[k];
+  return '<div class="kpi" style="background:'+p.g+'">'+
+    '<div class="lab">'+esc(label)+'</div>'+
+    '<div class="val">'+big+'</div>'+
+    '<div class="note">'+esc(sub)+'</div></div>';
+}
+function trkCell(title,amt,color,arrow,sub){
+  return '<div class="trkcell"><div class="trktitle">'+esc(title)+'</div>'+
+    '<div class="trkamt" style="color:'+color+'">'+arrow+' '+amt+'</div>'+
+    '<div class="trksub">'+esc(sub)+'</div></div>';
+}
+function weeklyPanel(wk){
+  if(!wk.haveAny)
+    return '<div class="panel"><h3>Weekly arrears tracker</h3>'+
+      '<div class="hint">No previous-week data yet — the tracker activates once a second weekly Del Report is in the portal.</div></div>';
+  const up = fmtMoney(Math.round(wk.incAmt*100)/100);
+  const setl = fmtMoney(Math.round(wk.setAmt*100)/100);
+  const net = Math.round(wk.net*100)/100;
+  const netCls = net>0?"var(--red)":(net<0?"var(--green)":"var(--muted)");
+  const netTxt = (net>0?"+":net<0?"−":"") + fmtMoney(Math.abs(net));
+  return '<div class="panel"><h3>Weekly arrears tracker '+
+    '<span class="hint" style="font-weight:400">vs previous report</span></h3>'+
+    '<div class="trk">'+
+      trkCell("Increased", up, "var(--red)", "▲", wk.newN.toLocaleString()+" new in arrears + "+wk.grewN.toLocaleString()+" grew")+
+      trkCell("Settled", setl, "var(--green)", "✓", wk.setN.toLocaleString()+" leases cleared vs last week")+
+      trkCell("Net change", netTxt, netCls, net>0?"▲":net<0?"▼":"■", net>0?"arrears rising":net<0?"arrears falling":"no net change")+
+    '</div></div>';
+}
+let gTimer = null;
+function onGlobal(v){
+  state._gq = v; syncClear("global");
+  clearTimeout(gTimer);
+  gTimer = setTimeout(()=>globalSearch(v), 150);
+}
+function globalSearch(q){
+  const box = document.getElementById("globalResults");
+  q = q.trim().toLowerCase();
+  if(q.length < 2){ box.innerHTML=""; return; }
+  let html = "", any = false;
+  TAB_ORDER.concat(SEARCH_ONLY_TABS).forEach(k=>{
+    if(k==="dashboard" || !DATA.tabs[k]) return;
+    const t = DATA.tabs[k];
+    const hits = t.rows.filter(r=>r.some(c=>String(c).toLowerCase().includes(q)));
+    if(!hits.length) return;
+    any = true;
+    const searchOnly = SEARCH_ONLY_TABS.includes(k);
+    const shown = searchOnly ? 8 : 5;
+    html += '<div class="grp"><h4>'+esc(t.label)+' — '+hits.length+' match'+(hits.length>1?"es":"")+
+      (searchOnly
+        ? (hits.length>shown ? '<span class="more" style="cursor:default">showing first '+shown+'</span>' : "")
+        : '<span class="more" onclick="show(\''+k+'\', state._gq)">open in tab →</span>')+'</h4>';
+    html += miniTable(k, hits.slice(0,shown));
+    html += "</div>";
+  });
+  box.innerHTML = '<div class="panel"><h3>Search results</h3>'+(any ? html : '<div class="empty">No matches found.</div>')+'</div>';
+}
+function miniTable(tab, rows){
+  const t = DATA.tabs[tab];
+  /* search-only views (estate, ps lease estate) show every column — "all info" */
+  const keep = SEARCH_ONLY_TABS.includes(tab)
+    ? t.columns.map((c,i)=>({c,i}))
+    : t.columns.map((c,i)=>({c,i})).filter(o=>
+    ["mid","legal name","trading name","lease no.","lease no","lease","arrears","lease status","mandate status","paid","term","rental","ps team","new in arrears","partner"].includes(o.c.toLowerCase()));
+  let h = '<div class="tablewrap" style="max-height:none;box-shadow:none;border-radius:12px"><table><thead><tr>';
+  keep.forEach(o=> h += "<th style='cursor:default'>"+esc(o.c)+"</th>");
+  h += "</tr></thead><tbody>";
+  rows.forEach(r=>{
+    h += "<tr>";
+    keep.forEach(o=>{
+      const name = o.c.toLowerCase(), v = r[o.i]===undefined?"":r[o.i];
+      if(name==="arrears") h += '<td class="arrears">'+fmtMoney(v)+"</td>";
+      else if(MONEY_COLS.has(name)) h += '<td class="money">'+fmtMoney(v)+"</td>";
+      else if(STATUS_COLS.includes(name)||TAG_COLS.includes(name)) h += "<td>"+ (v!==""?badge(v,name):"") +"</td>";
+      else h += "<td>"+esc(v)+"</td>";
+    });
+    h += "</tr>";
+  });
+  return h + "</tbody></table></div>";
+}
+
+/* ================= TABLE TABS ================= */
+const PAGE = 50;
+function facetDefs(tab){
+  /* returns [{label, colIdx, values:[...]}] — tags first, then status columns */
+  const t = DATA.tabs[tab];
+  const defs = [];
+  const tagIdx = [];
+  TAG_COLS.forEach(n=>{
+    const i = colIdx(tab,[n]);
+    if(i>-1) tagIdx.push({name:t.columns[i], i});
+  });
+  if(tagIdx.length) defs.push({label:"Tags", tags:tagIdx});
+  STATUS_COLS.forEach(n=>{
+    const i = colIdx(tab,[n]);
+    if(i>-1){
+      const vals = [...new Set(t.rows.map(r=>String(r[i])).filter(v=>v!==""))].sort();
+      if(vals.length>1) defs.push({label:t.columns[i], i, vals});
+    }
+  });
+  return defs;
+}
+function renderTable(tab){
+  /* static shell: page head + toolbar (search input survives re-renders) */
+  const t = DATA.tabs[tab], st = state[tab];
+  const nFilters = facetCount(st);
+
+  let html = '<div class="pagehead">'+tile(tab)+'<div><h2>'+esc(t.label)+'</h2>'+
+    '<div class="sub">'+t.rows.length.toLocaleString()+' leases in total · '+fmtMoney(Math.round(sumArrears(tab,t.rows)*100)/100)+' arrears</div></div></div>';
+
+  html += '<div class="toolbar">'+
+    searchBox(tab, st.q, "onQ('"+tab+"',this.value)", false, "Search "+t.label+" — any column…");
+
+  /* Filters dropdown */
+  const defs = facetDefs(tab);
+  if(defs.length){
+    html += '<div class="ddwrap"><button class="tbtn" onclick="toggleDD(event,\'filterpanel\')">'+I_FILTER+'Filters<span class="fcount" id="fbadge" '+(nFilters?'':'style="display:none"')+'>'+nFilters+'</span></button>'+
+      '<div class="ddpanel" id="filterpanel">';
+    defs.forEach(d=>{
+      if(d.tags){
+        html += '<div class="sec">Tags</div>';
+        d.tags.forEach(tg=>{
+          const on = st.facets[tg.i] && st.facets[tg.i].has("Yes");
+          html += '<label><input type="checkbox" '+(on?"checked":"")+' data-tab="'+tab+'" data-col="'+tg.i+'" data-val="Yes" onchange="onFacet(this)"> '+esc(tg.name)+"</label>";
+        });
+      }else{
+        html += '<div class="sec">'+esc(d.label)+'</div>';
+        d.vals.forEach(v=>{
+          const on = st.facets[d.i] && st.facets[d.i].has(v);
+          html += '<label><input type="checkbox" '+(on?"checked":"")+' data-tab="'+tab+'" data-col="'+d.i+'" data-val="'+esc(v)+'" onchange="onFacet(this)"> '+esc(v)+"</label>";
+        });
+      }
+    });
+    html += '<div class="dd-actions"><button onclick="clearFilters(\''+tab+'\')">Clear all filters</button></div></div></div>';
+  }
+
+  html += '<span class="stat" id="tstat"></span>';
+
+  /* Columns dropdown */
+  html += '<div class="ddwrap"><button class="tbtn" onclick="toggleDD(event,\'colpanel\')">'+I_COLS+'Columns</button>'+
+    '<div class="ddpanel" id="colpanel">'+
+      t.columns.map((c,i)=>'<label><input type="checkbox" '+(st.colVis.has(i)?"checked":"")+' onchange="onColToggle(\''+tab+'\','+i+',this.checked)"> '+esc(c)+"</label>").join("")+
+      '<div class="dd-actions"><button onclick="colsAll(\''+tab+'\',true)">Show all</button><button onclick="colsAll(\''+tab+'\',false)">Reset</button></div>'+
+    "</div></div>";
+  html += '<button class="tbtn" onclick="exportCsv(\''+tab+'\')">'+I_EXPORT+'Export</button>';
+  html += "</div>";
+  html += '<div id="dyn"></div>';
+
+  document.getElementById("main").innerHTML = html;
+  renderDyn(tab);
+}
+
+function renderDyn(tab){
+  /* dynamic part only: chips + table + pager (search input untouched) */
+  if(current!==tab) return;
+  const dyn = document.getElementById("dyn");
+  if(!dyn) return;
+  const t = DATA.tabs[tab], st = state[tab];
+  const rows = filterRows(tab);
+  const pages = Math.max(1, Math.ceil(rows.length/PAGE));
+  if(st.page>pages) st.page = pages;
+  const slice = rows.slice((st.page-1)*PAGE, st.page*PAGE);
+  const arrTotal = sumArrears(tab, rows);
+  const visCols = t.columns.map((c,i)=>({c,i})).filter(o=>st.colVis.has(o.i));
+  const nFilters = facetCount(st);
+
+  const stat = document.getElementById("tstat");
+  if(stat) stat.innerHTML = rows.length.toLocaleString()+" leases · <b>"+fmtMoney(Math.round(arrTotal*100)/100)+"</b>";
+  const fb = document.getElementById("fbadge");
+  if(fb){ fb.textContent = nFilters; fb.style.display = nFilters ? "" : "none"; }
+
+  let html = "";
+  if(nFilters || st.q){
+    html += '<div class="chips">';
+    for(const [ci, vals] of Object.entries(st.facets)){
+      vals.forEach(v=>{
+        html += '<span class="chip">'+esc(t.columns[ci])+': '+esc(v)+
+          '<button data-tab="'+tab+'" data-col="'+ci+'" data-val="'+esc(v)+'" onclick="removeChip(this)">✕</button></span>';
+      });
+    }
+    if(st.q) html += '<span class="chip">Search: “'+esc(st.q)+'”<button onclick="clearSearch(\''+tab+'\')">✕</button></span>';
+    if(nFilters + (st.q?1:0) > 1) html += '<span class="chip clearall" onclick="clearFilters(\''+tab+'\',true)">Clear all ✕</span>';
+    html += "</div>";
+  }
+
+  html += '<div class="tablewrap"><table><thead><tr>';
+  visCols.forEach(o=>{
+    const arrow = st.sortCol===o.i ? (st.sortDir===1?"▲":"▼") : "";
+    html += '<th onclick="onSort(\''+tab+'\','+o.i+')">'+esc(o.c)+'<span class="arrow">'+arrow+"</span></th>";
+  });
+  html += "</tr></thead><tbody>";
+  if(!slice.length) html += '<tr><td colspan="'+visCols.length+'"><div class="empty">No matching records.</div></td></tr>';
+  slice.forEach(r=>{
+    html += "<tr>";
+    visCols.forEach(o=>{
+      const name = o.c.toLowerCase(), v = r[o.i]===undefined?"":r[o.i];
+      if(name==="arrears"||name==="last arrears") html += '<td class="arrears">'+fmtMoney(v)+"</td>";
+      else if(MONEY_COLS.has(name)) html += '<td class="money">'+fmtMoney(v)+"</td>";
+      else if((STATUS_COLS.includes(name)||TAG_COLS.includes(name)) && v!=="") html += "<td>"+badge(v,name)+"</td>";
+      else if(name==="email") html += '<td><a href="mailto:'+esc(v)+'">'+esc(v)+"</a></td>";
+      else html += "<td title=\""+esc(v)+"\">"+esc(v)+"</td>";
+    });
+    html += "</tr>";
+  });
+  html += "</tbody></table></div>";
+
+  html += '<div class="pager">'+
+    '<button '+(st.page<=1?"disabled":"")+' onclick="onPage(\''+tab+'\',-1)">‹ Prev</button>'+
+    "<span>Page "+st.page+" of "+pages+"</span>"+
+    '<button '+(st.page>=pages?"disabled":"")+' onclick="onPage(\''+tab+'\',1)">Next ›</button></div>';
+
+  dyn.innerHTML = html;
+}
+
+let qTimer = null;
+function onQ(tab,v){
+  state[tab].q = v;
+  state[tab].page = 1;
+  syncClear(tab);
+  clearTimeout(qTimer);
+  qTimer = setTimeout(()=>renderDyn(tab), 120);
+}
+function onFacet(cb){
+  const tab = cb.dataset.tab, ci = cb.dataset.col, v = cb.dataset.val;
+  const st = state[tab];
+  if(!st.facets[ci]) st.facets[ci] = new Set();
+  if(cb.checked) st.facets[ci].add(v); else st.facets[ci].delete(v);
+  if(!st.facets[ci].size) delete st.facets[ci];
+  st.page = 1;
+  renderDyn(tab);  /* panel stays open, checkboxes untouched */
+}
+function removeChip(btn){
+  const tab = btn.dataset.tab, ci = btn.dataset.col, v = btn.dataset.val;
+  const st = state[tab];
+  if(st.facets[ci]){ st.facets[ci].delete(v); if(!st.facets[ci].size) delete st.facets[ci]; }
+  st.page = 1;
+  renderTable(tab);
+}
+function clearFilters(tab, alsoSearch){
+  const st = state[tab];
+  st.facets = {};
+  if(alsoSearch) st.q = "";
+  st.page = 1;
+  renderTable(tab);
+}
+function onSort(tab,i){
+  const st=state[tab];
+  if(st.sortCol===i) st.sortDir*=-1; else {st.sortCol=i; st.sortDir=1;}
+  renderDyn(tab);
+}
+function onPage(tab,d){ state[tab].page+=d; renderDyn(tab); }
+function toggleDD(e, id){
+  e.stopPropagation();
+  document.querySelectorAll(".ddpanel").forEach(p=>{ if(p.id!==id) p.classList.remove("open"); });
+  document.getElementById(id).classList.toggle("open");
+}
+document.addEventListener("click", e=>{
+  if(!e.target.closest(".ddwrap")) document.querySelectorAll(".ddpanel").forEach(p=>p.classList.remove("open"));
+});
+function onColToggle(tab,i,on){
+  const st = state[tab];
+  if(on) st.colVis.add(i); else st.colVis.delete(i);
+  if(st.colVis.size===0) st.colVis.add(i);
+  saveCols(tab);
+  renderDyn(tab);  /* panel stays open */
+}
+function colsAll(tab,all){
+  const st = state[tab];
+  st.colVis = new Set();
+  DATA.tabs[tab].columns.forEach((c,i)=>{ if(all || !DEFAULT_HIDDEN.has(c.toLowerCase())) st.colVis.add(i); });
+  saveCols(tab);
+  renderTable(tab);
+  document.getElementById("colpanel").classList.add("open");
+}
+function exportCsv(tab){
+  const t = DATA.tabs[tab];
+  const rows = filterRows(tab);
+  const csvCell = v => { v = String(v??""); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const csv = [t.columns.map(csvCell).join(",")]
+    .concat(rows.map(r=>t.columns.map((_,i)=>csvCell(r[i])).join(","))).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿"+csv],{type:"text/csv"}));
+  a.download = t.label.replace(/\s+/g,"_") + "_arrears.csv";
+  a.click();
+}
+</script>
+
+<!-- Lease embed: auto-unlock (parent handles the passcode) -->
+<script>(function(){var g=document.getElementById("gate");if(g)g.style.display="none";var a=document.getElementById("app");if(a)a.classList.add("on");try{if(typeof init==="function")init();}catch(e){console.error(e);}})();</script>
+</body>
+</html>

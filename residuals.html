@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Paymentsave — Residual View</title>
+<link rel="icon" href="https://paymentsave.co.uk/wp-content/uploads/2024/05/cropped-fav-icon-270x270.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky:#29abe2; --deep:#1c4e9d; --navy:#0b1f3f;
+    --bg:#f3f7fc; --card:#ffffff; --border:#e4ecf6; --text:#1d2b3f; --muted:#6b7f95;
+    --red:#e04f4f; --red-bg:#fdeaea; --green:#189a5c; --green-bg:#e2f6ec;
+    --amber:#c07f1d; --amber-bg:#fcf2df; --grey-bg:#eef3f8;
+    --purple:#7048d6; --purple-bg:#f0eafc;
+    --bg:#f7f9fc;
+    --shadow:0 1px 3px rgba(11,31,63,.06); --shadow-lg:0 8px 26px rgba(11,31,63,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:"Poppins","Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px}
+  button,input,select{font-family:inherit}
+  a{color:inherit}
+
+  /* ===== GATE ===== */
+  #gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+  #gate .box{position:relative;background:var(--card);padding:40px 38px 32px;border-radius:18px;width:380px;max-width:100%;text-align:center;box-shadow:var(--shadow-lg);border:1px solid var(--border)}
+  #gate img{height:38px;margin-bottom:18px}
+  #gate h1{font-size:15px;color:var(--navy);font-weight:600;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:6px}
+  #gate p{color:var(--muted);font-size:12px;margin-bottom:22px}
+  #gate input{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;text-align:center;letter-spacing:3px;outline:none;transition:.15s}
+  #gate input:focus{border-color:var(--sky);box-shadow:0 0 0 4px rgba(41,171,226,.15)}
+  #gate button{width:100%;margin-top:14px;padding:13px;background:var(--deep);color:#fff;border:0;border-radius:11px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  #gate button:hover{background:#173f80}
+  #gate button:hover{transform:translateY(-1px)}
+  #gate .err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+
+  /* ===== LAYOUT ===== */
+  #app{display:none;height:100vh}
+  #app.on{display:flex}
+  aside{width:238px;min-width:238px;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:22px 14px 16px;position:relative}
+  aside .logo{padding:0 6px 18px;border-bottom:1px solid var(--border);margin-bottom:16px;position:relative}
+  aside .logo img{width:100%;max-width:150px;display:block}
+  aside .logo .sub{font-size:9.5px;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-top:9px;padding-left:2px}
+  nav{display:flex;flex-direction:column;gap:3px;flex:1;position:relative}
+  .navbtn{display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;border:0;background:none;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;text-align:left;transition:.15s;position:relative}
+  .navbtn:hover{background:var(--grey-bg);color:var(--navy)}
+  .navbtn.active{background:#eef4fb;color:var(--deep);font-weight:600}
+  .navtile{width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:15px;background:none!important}
+  .navbtn:hover .navtile,.navbtn.active .navtile{color:var(--deep)}
+  .navtile svg{width:18px;height:18px}
+  .navbtn .cnt{margin-left:auto;background:var(--grey-bg);color:var(--muted);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:600}
+  .navbtn.active .cnt{background:var(--sky);color:#fff}
+  aside .meta{border-top:1px solid var(--border);padding:14px 8px 2px;font-size:10.5px;color:var(--muted);line-height:1.9;position:relative}
+  aside .meta b{color:var(--navy);font-weight:600}
+  main{flex:1;overflow:auto;padding:26px 30px}
+  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .view{animation:fadein .28s ease}
+  @keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+
+  /* tooltip */
+  .info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--grey-bg);color:var(--muted);font-size:10px;font-weight:700;cursor:help;margin-left:5px;position:relative;vertical-align:middle}
+  .kpi .info{background:rgba(255,255,255,.28);color:#fff}
+  .info:hover::after{content:attr(data-tip);position:absolute;bottom:140%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;font-weight:500;line-height:1.5;padding:9px 12px;border-radius:9px;width:230px;box-shadow:0 10px 30px rgba(11,31,63,.35);z-index:50;text-align:left;letter-spacing:0;text-transform:none}
+  .info:hover::before{content:"";position:absolute;bottom:140%;left:50%;transform:translate(-50%,60%) rotate(45deg);width:9px;height:9px;background:var(--navy);z-index:50}
+
+  /* ===== HERO ===== */
+  .hero{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;color:var(--text);position:relative;margin-bottom:20px}
+  .hero h2{font-size:19px;font-weight:700;position:relative;color:var(--navy)}
+  .hero .sub{font-size:12px;color:var(--muted);margin:4px 0 18px;position:relative}
+  .searchbox{position:relative;max-width:560px}
+  .searchbox svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted)}
+  .searchbox input{width:100%;padding:12px 44px;border:1px solid var(--border);border-radius:10px;font-size:14px;outline:none;background:var(--bg);transition:.15s}
+  .searchbox input:focus{border-color:var(--sky);background:var(--card);box-shadow:0 0 0 3px rgba(41,171,226,.12)}
+  .searchhint{font-size:11px;color:var(--muted);margin-top:9px;position:relative}
+  .clearbtn{position:absolute;right:11px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--grey-bg);color:var(--muted);border:0;cursor:pointer;display:none;align-items:center;justify-content:center;font-size:14px;line-height:1;padding:0;transition:.15s;z-index:2}
+  .clearbtn:hover{background:#d9e3ee;color:var(--navy)}
+  .searchbox.has-text .clearbtn{display:flex}
+  /* mini KPI cards (partner + MID views) */
+  .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:18px}
+  .mini .c{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:13px 15px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+  .mini .c:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+  .mini .c .l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .mini .c .v{font-size:19px;font-weight:700;color:var(--navy);margin-top:5px;line-height:1.15}
+  .mini .c .s{font-size:11px;color:var(--muted);margin-top:3px}
+  .mini .c .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+
+  /* ===== HEADINGS ===== */
+  .pagehead{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .pagehead h2{font-size:19px;font-weight:700;color:var(--navy)}
+  .pagehead .desc{font-size:12px;color:var(--muted)}
+  .section-title{font-size:14px;font-weight:700;color:var(--navy);margin:26px 0 12px;display:flex;align-items:center;gap:8px}
+  .section-title:first-child{margin-top:0}
+
+  /* ===== KPI CARDS ===== */
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:6px}
+  .kpi{border-radius:14px;padding:16px 18px;position:relative;color:#fff;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+  .kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .kpi .lab{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:rgba(255,255,255,.85)}
+  .kpi .val{font-size:23px;font-weight:800;color:#fff;margin-top:6px;line-height:1.1}
+  .kpi .val .up,.kpi .val .down{color:#fff}
+  .kpi .note{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:5px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  /* movers expand */
+  tr.xtra{display:none}
+  .card.open tr.xtra{display:table-row}
+  .showall{width:100%;border:0;background:var(--grey-bg);color:var(--deep);font-weight:600;font-size:12px;padding:11px;cursor:pointer;border-top:1px solid var(--border);transition:.15s}
+  .showall:hover{background:#e2eaf3}
+  .moverwrap{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:1080px){.moverwrap{grid-template-columns:1fr 1fr}}
+  .delta{display:inline-flex;align-items:center;gap:5px;font-weight:700}
+  .mtag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:8px}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .pill.up{background:var(--green-bg)} .pill.down{background:var(--red-bg)} .pill.flat{background:var(--grey-bg);color:var(--muted)}
+
+  /* ===== CARD / TABLE ===== */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
+  .card .ch{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .card .ch h3{font-size:14px;font-weight:700;color:var(--navy)}
+  .card .ch .sub{font-size:11.5px;color:var(--muted)}
+  .tblwrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{padding:10px 14px;text-align:left;white-space:nowrap}
+  thead th{background:var(--grey-bg);color:var(--muted);font-weight:600;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;position:sticky;top:0}
+  tbody tr{border-top:1px solid var(--border)}
+  tbody tr:hover{background:#f7fafe}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .rank{width:26px;height:26px;border-radius:8px;background:var(--grey-bg);color:var(--navy);font-weight:700;font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+  .rank.top{background:linear-gradient(135deg,var(--sky),var(--deep));color:#fff}
+  .clk{cursor:pointer;color:var(--deep);font-weight:600}
+  .clk:hover{text-decoration:underline}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px}
+  .tag.r{background:var(--red-bg);color:var(--red)} .tag.g{background:var(--green-bg);color:var(--green)}
+  .tag.a{background:var(--amber-bg);color:var(--amber)} .tag.p{background:var(--purple-bg);color:var(--purple)}
+  .tag.n{background:var(--grey-bg);color:var(--muted)}
+
+  /* ===== ANALYSIS ===== */
+  .an-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .an-head .t{font-size:20px;font-weight:700;color:var(--navy)}
+  .an-head .m{font-size:12px;color:var(--muted);margin-top:3px}
+  .an-head .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .bignum{text-align:right}
+  .bignum .v{font-size:26px;font-weight:800}
+  .bignum .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .cmp{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:900px){.cmp{grid-template-columns:1.1fr .9fr}}
+  .diag{border-radius:14px;padding:16px 18px;font-size:13px;line-height:1.7}
+  .diag h4{font-size:12px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .diag.why{background:var(--red-bg);border:1px solid #f6cccc}
+  .diag.why h4{color:var(--red)}
+  .diag.sol{background:var(--green-bg);border:1px solid #bfe7cf}
+  .diag.sol h4{color:var(--green)}
+  .diag.up{background:var(--green-bg);border:1px solid #bfe7cf}.diag.up h4{color:var(--green)}
+  .diag ul{margin:0;padding-left:18px}
+  .diag li{margin-bottom:6px}
+  .diag li:last-child{margin-bottom:0}
+  .changed{background:var(--amber-bg);border:1px solid #f0dcae;border-radius:10px;padding:9px 13px;font-size:12.5px;color:var(--amber);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .arrow{font-weight:700}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .backbtn{background:var(--grey-bg);border:0;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:600;color:var(--deep);cursor:pointer;margin-bottom:14px}
+  .backbtn:hover{background:#e2eaf3}
+  .bar{height:9px;border-radius:6px;background:var(--grey-bg);overflow:hidden}
+  .bar>span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--sky),var(--deep))}
+  .reslist{border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px}
+  .resitem{padding:12px 16px;border-top:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .resitem:first-child{border-top:0}
+  .resitem:hover{background:#f7fafe}
+  .resitem .nm{font-weight:600;color:var(--navy)}
+  .resitem .sm{font-size:11px;color:var(--muted);margin-top:2px}
+  @media(max-width:760px){aside{display:none}main{padding:18px 14px}}
+</style>
+<style>/* embed: passcode removed, parent handles auth; inner sidebar hidden (parent drives tabs); keep gradient KPIs */#gate{display:none!important}#app{display:flex!important}aside{display:none!important}main{flex:1 1 auto!important;width:100%!important}</style>
+</head>
+<body>
+
+<div id="gate" style="display:none" aria-hidden="true">
+  <div class="box">
+    <img src="https://paymentsave.co.uk/wp-content/uploads/2024/05/paymentsave-Logo-1024x224.png" alt="Paymentsave">
+    <h1>Residual View</h1>
+    <p>Enter the team passcode to continue</p>
+    <input type="password" id="pass" placeholder="••••••••" autofocus>
+    <button onclick="checkPass()">Sign in</button>
+    <div class="err" id="passErr"></div>
+  </div>
+</div>
+
+<div id="app" class="on">
+  <aside>
+    <div class="logo">
+      <img src="https://paymentsave.co.uk/wp-content/uploads/2024/05/paymentsave-Logo-1024x224.png" alt="Paymentsave">
+      <div class="sub">Residual View</div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="meta" id="sideMeta"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<script>document.write('<script src="resid_data.js?v='+Date.now()+'"><\/script>');</script>
+<script>
+/* ================= PASSCODE ================= */
+const PASS_HASH="cfcba9d06239fed878cf3c855395d79dcd28aedccc924bdb21521c8c663cf64f";
+async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest("SHA-256",b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function checkPass(){
+  const v=document.getElementById("pass").value;
+  if(await sha256(v)===PASS_HASH){document.getElementById("gate").style.display="none";document.getElementById("app").classList.add("on");init();}
+  else{document.getElementById("passErr").textContent="Incorrect passcode";document.getElementById("pass").value="";}
+}
+document.getElementById("pass").addEventListener("keydown",e=>{if(e.key==="Enter")checkPass();});
+
+/* ================= DATA ================= */
+let D, MIDS=[], PARTNERS=[], MBYID={};
+function boot(){
+  D=window.RESID; const C=D.cols;
+  MIDS=D.mids.map(r=>{const o={};C.forEach((c,i)=>o[c]=r[i]);
+    o.presJ=o.entJ!==""||o.earnJ!==0; o.presM=o.entM!==""||o.earnM!==0;
+    o.diff=+(o.earnJ-o.earnM).toFixed(2);
+    o.bpsJ=o.volJ>0?o.earnJ/o.volJ*10000:0; o.bpsM=o.volM>0?o.earnM/o.volM*10000:0;
+    o.entChg=o.entJ!==""&&o.entM!==""&&o.entJ!==o.entM;
+    return o;});
+  MIDS.forEach(m=>MBYID[m.mid]=m);
+  PARTNERS=D.partners.map(p=>({name:p[0],earnJ:p[1],earnM:p[2],cntJ:p[3],cntM:p[4],diff:+(p[1]-p[2]).toFixed(2)}));
+}
+
+/* ================= FORMAT ================= */
+const gbp=n=>"£"+Math.round(n).toLocaleString("en-GB");
+const gbp2=n=>"£"+(+n).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+function money(n){const a=Math.abs(n);if(a>=1e6)return "£"+(n/1e6).toFixed(2)+"m";if(a>=1e3)return "£"+(n/1e3).toFixed(1)+"k";return "£"+n.toFixed(0);}
+const pct=(a,b)=>b===0?(a>0?100:0):(a-b)/Math.abs(b)*100;
+function signPct(a,b){const p=pct(a,b);const s=p>=0?"+":"";return s+p.toFixed(1)+"%";}
+function esc(s){return (s==null?"":""+s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function jsq(s){return (""+s).replace(/\\/g,"\\\\").replace(/'/g,"\\'");}
+function clearSearch(id){const i=document.getElementById(id);if(!i)return;i.value="";const b=i.closest(".searchbox");if(b)b.classList.remove("has-text");i.focus();if(id==="q"){NAV=[];const R=document.getElementById("results");if(R)R.innerHTML="";}}
+function miniCards(cards){return `<div class="mini">`+cards.map(c=>`<div class="c"${c.onclick?` style="cursor:pointer" title="${c.title||'View these merchants'}" onclick="${c.onclick}"`:''}><div class="strip" style="background:${c.color||'var(--sky)'}"></div><div class="l">${c.l}${c.onclick?' <span style="opacity:.5">›</span>':''}</div><div class="v"${c.vcolor?` style="color:${c.vcolor}"`:''}>${c.v}</div>${c.s?`<div class="s">${c.s}</div>`:''}</div>`).join("")+`</div>`;}
+/* ---- search navigation stack (so Back returns to the previous screen) ---- */
+let NAV=[];
+function resultsEl(){return document.getElementById("results")||document.getElementById("dashResults");}
+function navRender(){
+  const R=resultsEl();if(!R)return;
+  const s=NAV[NAV.length-1];
+  if(!s){R.innerHTML="";return;}
+  if(s.t==="search")R.innerHTML=searchResults(s.q);
+  else if(s.t==="partner"){const p=PARTNERS.find(x=>x.name===s.name);R.innerHTML=p?renderPartner(p):`<div class="empty">Partner not found.</div>`;}
+  else if(s.t==="mid"){const r=MBYID[s.mid];R.innerHTML=r?renderMID(r):`<div class="empty">MID not found.</div>`;}
+  const mn=document.getElementById("main");if(mn)mn.scrollTop=0;
+}
+function navGo(s){NAV.push(s);navRender();}
+function navBack(){
+  if(NAV.length>1){NAV.pop();navRender();return;}
+  NAV=[];
+  if(document.getElementById("dashResults")){dashClear();return;} // on dashboard: restore default body
+  const R=document.getElementById("results");if(R)R.innerHTML="";
+  const q=document.getElementById("q");if(q){q.value="";q.focus();}
+}
+function backLabel(){const p=NAV[NAV.length-2];
+  if(!p)return document.getElementById("dashResults")?"← Back to dashboard":"← Back to search";
+  if(p.t==="partner")return "← Back to "+esc(p.name);
+  if(p.t==="search")return "← Back to results";
+  return "← Back";}
+function crumbs(){ // breadcrumb trail for context
+  if(NAV.length<2)return "";
+  const parts=NAV.map((s,i)=>{
+    let lab = s.t==="search" ? "“"+esc(s.q)+"”" : s.t==="partner" ? esc(s.name) : ("MID "+s.mid);
+    const last=i===NAV.length-1;
+    return last?`<span style="color:var(--navy);font-weight:600">${lab}</span>`
+               :`<span class="clk" onclick="NAV=NAV.slice(0,${i+1});navRender()">${lab}</span>`;
+  });
+  return `<div style="font-size:11.5px;color:var(--muted);margin-bottom:12px">${parts.join(' <span style="opacity:.5">›</span> ')}</div>`;
+}
+function openInline(state){ // if on dashboard, render results inline instead of jumping to Search tab
+  const dr=document.getElementById("dashResults");
+  if(!dr)return false;
+  const db=document.getElementById("dashBody");if(db)db.style.display="none";
+  dr.style.display="";NAV=[state];navRender();return true;
+}
+function openPartner(name){if(openInline({t:"partner",name:name}))return;show("search");NAV=[{t:"partner",name:name}];navRender();}
+function openMID(mid){if(openInline({t:"mid",mid:+mid}))return;show("search");NAV=[{t:"mid",mid:+mid}];navRender();}
+function diffPill(d){const c=d>0.005?"up":d<-0.005?"down":"flat";const s=d>0?"▲ ":d<0?"▼ ":"";return `<span class="pill ${c}">${s}${gbp(Math.abs(d))}</span>`;}
+
+/* ================= NAV ================= */
+const TABS=[
+  {k:"dash",  t:"Dashboard",     ic:"M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"},
+  {k:"part",  t:"Top Partners",  ic:"M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"},
+  {k:"funding",t:"Funding",      ic:"M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2zm8 3a3 3 0 100 6 3 3 0 000-6zM6 9a2 2 0 01-2 2m16 0a2 2 0 01-2-2M6 15a2 2 0 00-2-2m16 0a2 2 0 00-2 2"},
+  {k:"search",t:"Search",        ic:"M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"},
+  {k:"movers",t:"Biggest Movers",ic:"M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"},
+];
+function buildNav(){
+  const nav=document.getElementById("nav");nav.innerHTML="";
+  TABS.forEach(t=>{
+    const b=document.createElement("button");b.className="navbtn";b.dataset.tab=t.k;
+    b.innerHTML=`<span class="navtile" style="background:linear-gradient(135deg,var(--sky),var(--deep))"><svg viewBox="0 0 24 24" fill="currentColor"><path d="${t.ic}"/></svg></span><span>${t.t}</span>`;
+    b.onclick=()=>show(t.k);nav.appendChild(b);
+  });
+  const m=D.meta;
+  document.getElementById("sideMeta").innerHTML=
+    `Current: <b>${m.curLabel}</b><br>Prior: <b>${m.prevLabel}</b><br>Merchants: <b>${m.midsJ.toLocaleString()}</b><br>Partners: <b>${m.partnersJ}</b>`;
+}
+function show(tab,arg){
+  NAV=[]; // reset drill-down history when switching tabs
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+  const main=document.getElementById("main");main.scrollTop=0;
+  let h="";
+  if(tab==="dash")h=viewDash();
+  else if(tab==="part")h=viewPartners();
+  else if(tab==="funding")h=viewFunding();
+  else if(tab==="movers")h=viewMovers();
+  else if(tab==="search")h=viewSearch(arg);
+  main.innerHTML='<div class="view">'+h+'</div>';
+  if(tab==="search"){const i=document.getElementById("q");if(i){i.focus();if(arg){i.value=arg;doSearch();}}}
+}
+
+/* ================= DASHBOARD ================= */
+function viewDash(){
+  const m=D.meta;const diff=m.earnJ-m.earnM;const dp=pct(m.earnJ,m.earnM);
+  const bpsJ=m.volJ>0?m.earnJ/m.volJ*10000:0, bpsM=m.volM>0?m.earnM/m.volM*10000:0;
+  const cls=diff>=0?"up":"down";
+  const GREEN="linear-gradient(135deg,#2bbd77,#178a53)", RED="linear-gradient(135deg,#ec6a6a,#cf3f3f)";
+  const kpis=[
+    {l:`Earnings — ${m.curLabel}`,v:gbp(m.earnJ),n:`${m.midsJ.toLocaleString()} merchants`,g:"linear-gradient(135deg,#6a5ce0,#3f3bb0)"},
+    {l:`Earnings — ${m.prevLabel}`,v:gbp(m.earnM),n:`${m.midsM.toLocaleString()} merchants`,g:"linear-gradient(135deg,#e79a52,#d1702f)"},
+    {l:"Month-on-month change",v:`${diff>=0?"+":"−"}${gbp(Math.abs(diff))}`,n:`${signPct(m.earnJ,m.earnM)} vs ${m.prevLabel}`,g:diff>=0?GREEN:RED},
+    {l:`Book yield <span class="info" data-tip="BPS = basis points. 1 bp = 0.01%. Book yield = total earnings ÷ total card sales volume × 10,000 — how much of every £1 processed you keep as residual. ${bpsJ.toFixed(1)} bps ≈ ${(bpsJ/100).toFixed(3)}p per £1.">i</span>`,v:bpsJ.toFixed(1)+" bps",n:`${bpsM.toFixed(1)} bps last month`,g:"linear-gradient(135deg,#2bb0c9,#1c86a0)"},
+  ];
+  let html=`<div class="hero">
+    <h2>Residual overview — ${m.curLabel}</h2>
+    <div class="sub">Elavon datagrid · earnings, month-on-month movement and per-merchant drill-down</div>
+    ${searchBar()}
+  </div>`;
+  html+=`<div id="dashResults" style="display:none"></div><div id="dashBody">`;
+  html+=`<div class="kgrid">`+kpis.map(k=>`<div class="kpi" style="background:${k.g}"><div class="lab">${k.l}</div><div class="val">${k.v}</div><div class="note">${k.n}</div></div>`).join("")+`</div>`;
+
+  // ---- movement KPIs (new / lost / increased / decreased) ----
+  const won =MIDS.filter(x=>x.presJ&&!x.presM), lost=MIDS.filter(x=>!x.presJ&&x.presM);
+  const inc =MIDS.filter(x=>x.presJ&&x.presM&&x.diff>0.005), dec=MIDS.filter(x=>x.presJ&&x.presM&&x.diff<-0.005);
+  const sW=won.reduce((s,x)=>s+x.diff,0), sL=lost.reduce((s,x)=>s+x.diff,0);
+  const sI=inc.reduce((s,x)=>s+x.diff,0), sD=dec.reduce((s,x)=>s+x.diff,0);
+  const mv=[
+    {l:"Newly added",v:won.length.toLocaleString(),sign:"+",amt:sW,g:GREEN,tab:"movers"},
+    {l:"Lost vs last month",v:lost.length.toLocaleString(),sign:"−",amt:sL,g:RED,tab:"movers"},
+    {l:"Residuals increased",v:inc.length.toLocaleString(),sign:"+",amt:sI,g:GREEN,tab:"movers"},
+    {l:"Residuals decreased",v:dec.length.toLocaleString(),sign:"−",amt:sD,g:RED,tab:"movers"}];
+  html+=`<div class="kgrid" style="margin-top:16px">`+mv.map(k=>`<div class="kpi" style="background:${k.g};cursor:pointer" onclick="show('${k.tab}')">
+    <div class="lab">${k.l}</div><div class="val">${k.v} <span style="font-size:13px;color:rgba(255,255,255,.8);font-weight:600">merchants</span></div>
+    <div class="note">${k.sign}${gbp(Math.abs(k.amt))} residual</div></div>`).join("")+`</div>`;
+
+  // net reconciliation strip
+  const netMv=sW+sL+sI+sD;
+  html+=`<div style="margin-top:12px;font-size:11.5px;color:var(--muted)">Net of the four movements: <b style="color:${netMv>=0?'var(--green)':'var(--red)'}">${netMv>=0?'+':'−'}${gbp(Math.abs(netMv))}</b> — the month-on-month change of ${diff>=0?'+':'−'}${gbp(Math.abs(diff))}. Click any tile for the full list.</div>`;
+
+  // ---- funding summary ----
+  const f=D.funding;
+  if(f&&f.providers.length){
+    const fc=[{l:"Total funding",v:gbp(f.grand),g:"linear-gradient(135deg,#2bbd77,#178a53)",n:`${f.months.length} months · all providers`}];
+    if(f.last)fc.push({l:`Funding — ${esc(f.last.label)}`,v:gbp(f.last.total),g:"linear-gradient(135deg,#6a5ce0,#3f3bb0)",n:"last available month"});
+    f.providers.forEach((p,i)=>fc.push({l:esc(p),v:gbp(f.byProvider[i]),g:FUND_GRAD[i%FUND_GRAD.length],n:"total funding"}));
+    html+=`<div class="section-title" style="margin-top:26px">Funding <span class="clk" style="font-weight:600;margin-left:auto" onclick="show('funding')">View all →</span></div>`;
+    html+=`<div class="kgrid">`+fc.map(k=>`<div class="kpi" style="background:${k.g};cursor:pointer" onclick="show('funding')"><div class="lab">${k.l}</div><div class="val">${k.v}</div><div class="note">${k.n}</div></div>`).join("")+`</div>`;
+  }
+
+  // plan breakdown
+  const PLAN_INFO={
+    "RESIDUAL":{n:"Residual share",d:"Your cut of the margin between what the merchant pays (MSC) and Elavon's buy rate / card cost."},
+    "DIA %":{n:"Interchange-plus (DIA)",d:"Merchants on interchange-plus pricing — a share of MSC after interchange &amp; scheme fees (~36%)."},
+    "ICPT":{n:"Interchange markup (ICPT)",d:"A 50% share of the interchange markup billed on card volume."},
+    "AUTHORIZATION FEE REBATE":{n:"Auth-fee rebate",d:"Auth fee charged minus the ~1p cost per authorisation — negative when merchants pay 0p but the cost still applies."},
+    "FEE REBATE":{n:"Service-fee rebate",d:"Margin on monthly / service (MSEQ) fees — fee charged minus fee cost."},
+    "REBATE":{n:"DCC rebate",d:"0.65% of dynamic-currency-conversion (DCC) volume."}
+  };
+  const pj=m.planJ, order=Object.keys(pj), totJ=m.earnJ;
+  html+=`<div class="section-title">How the earnings are made up · ${m.curLabel}
+    <span class="info" data-tip="Every datagrid row earns under one of six Elavon plan formulas. Residual share is the bulk of the book; the rest are smaller interchange, fee and rebate components.">i</span></div>`;
+  html+=`<div class="card"><div class="tblwrap"><table>
+    <thead><tr><th>Earnings type</th><th style="width:190px">Share of book</th><th class="num">${m.curLabel}</th><th class="num">${m.prevLabel}</th><th class="num">Change</th></tr></thead><tbody>`;
+  order.forEach(k=>{const a=pj[k],b=(m.planM[k]||0),info=PLAN_INFO[k]||{n:k,d:""};
+    const shr=totJ?a/totJ*100:0;
+    html+=`<tr>
+      <td style="white-space:normal;max-width:340px"><b>${esc(info.n)}</b> <span class="tag n" style="font-size:9.5px">${esc(k)}</span>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5">${info.d}</div></td>
+      <td><div style="display:flex;align-items:center;gap:9px"><div class="bar" style="flex:1"><span style="width:${Math.max(1.5,Math.abs(shr))}%;${a<0?'background:var(--red)':''}"></span></div>
+        <span style="font-weight:700;font-size:11.5px;min-width:42px;text-align:right;${a<0?'color:var(--red)':''}">${shr<0?'−':''}${Math.abs(shr).toFixed(shr>=10?0:1)}%</span></div></td>
+      <td class="num"><b>${gbp(a)}</b></td><td class="num">${gbp(b)}</td>
+      <td class="num ${a-b>=0?'up':'down'}">${a-b>=0?'+':'−'}${gbp(Math.abs(a-b))}</td></tr>`;});
+  html+=`<tr style="border-top:2px solid var(--border);background:var(--grey-bg)"><td><b>Total earnings</b></td><td></td>
+    <td class="num"><b>${gbp(totJ)}</b></td><td class="num"><b>${gbp(m.earnM)}</b></td>
+    <td class="num ${totJ-m.earnM>=0?'up':'down'}"><b>${totJ-m.earnM>=0?'+':'−'}${gbp(Math.abs(totJ-m.earnM))}</b></td></tr>`;
+  html+=`</tbody></table></div></div>`;
+
+  html+=`</div>`;
+  return html;
+}
+function searchBar(){
+  return `<div class="searchbox">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg>
+    <input id="qhero" placeholder="Search a MID, merchant name or sales partner…" oninput="dashSearch()" onkeydown="if(event.key==='Enter'){event.preventDefault();dashSearch();}">
+    <button class="clearbtn" title="Clear" onclick="dashClear()">✕</button>
+  </div>
+  <div class="searchhint">Search a MID or partner — results appear right here on the dashboard.</div>`;
+}
+function dashSearch(){
+  const inp=document.getElementById("qhero");if(!inp)return;const q=inp.value.trim();
+  const box=inp.closest(".searchbox");if(box)box.classList.toggle("has-text",!!q);
+  const dr=document.getElementById("dashResults"),db=document.getElementById("dashBody");
+  if(!q){NAV=[];if(dr){dr.style.display="none";dr.innerHTML="";}if(db)db.style.display="";return;}
+  NAV=[{t:"search",q:q}];if(db)db.style.display="none";if(dr)dr.style.display="";
+  navRender();
+}
+function dashClear(){
+  const inp=document.getElementById("qhero");if(inp){inp.value="";const box=inp.closest(".searchbox");if(box)box.classList.remove("has-text");}
+  NAV=[];const dr=document.getElementById("dashResults");if(dr){dr.style.display="none";dr.innerHTML="";}
+  const db=document.getElementById("dashBody");if(db)db.style.display="";
+  if(inp)inp.focus();
+}
+
+/* ================= TOP PARTNERS ================= */
+function viewPartners(){
+  const m=D.meta;const tp=PARTNERS.slice(0,20);
+  let html=`<div class="pagehead"><h2>Top 20 Sales Partners</h2><span class="desc">by residual earnings · ${m.curLabel}</span></div>`;
+  html+=`<div class="card"><div class="tblwrap"><table>
+    <thead><tr><th>#</th><th>Sales Partner</th><th class="num">${m.curLabel}</th><th class="num">${m.prevLabel}</th><th class="num">Change</th><th class="num">%</th><th class="num">MIDs</th></tr></thead><tbody>`;
+  tp.forEach((p,i)=>{
+    const cls=p.diff>=0?"up":"down";
+    html+=`<tr>
+      <td><span class="rank ${i<3?'top':''}">${i+1}</span></td>
+      <td class="clk" onclick="openPartner('${jsq(p.name)}')">${esc(p.name)}</td>
+      <td class="num"><b>${gbp(p.earnJ)}</b></td>
+      <td class="num">${gbp(p.earnM)}</td>
+      <td class="num">${diffPill(p.diff)}</td>
+      <td class="num ${cls}">${signPct(p.earnJ,p.earnM)}</td>
+      <td class="num">${p.cntJ}</td></tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+  return html;
+}
+
+/* ================= FUNDING ================= */
+const FUND_GRAD=["linear-gradient(135deg,#6a5ce0,#3f3bb0)","linear-gradient(135deg,#e79a52,#d1702f)","linear-gradient(135deg,#2bb0c9,#1c86a0)","linear-gradient(135deg,#2bbd77,#178a53)","linear-gradient(135deg,#d15b9e,#a83b7d)"];
+const FUND_SOL=["#5a4fd0","#dd8a3e","#23a0bd","#22a86b","#c24f92","#e0a93f","#3f7fd1"];
+function fundingChart(months, providers, colors){
+  const P=providers.length, M=months.length;
+  const padL=52,padB=30,padT=12,padR=10,H=210;
+  const groupW=Math.max(58,26+P*18), plotW=M*groupW, W=padL+plotW+padR, totalH=padT+H+padB;
+  let maxV=Math.max(1,...[].concat(...months.map(mo=>mo.v)));
+  const pw=Math.pow(10,Math.floor(Math.log10(maxV))); maxV=Math.ceil(maxV/pw)*pw;
+  let g="";
+  for(let s=0;s<=4;s++){const val=maxV*s/4,y=padT+H-(H*s/4);
+    g+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4ecf6" stroke-width="1"/>`;
+    g+=`<text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="9" fill="#6b7f95">£${Math.round(val).toLocaleString()}</text>`;}
+  months.forEach((mo,mi)=>{
+    const gx=padL+mi*groupW, barW=(groupW-16)/P;
+    mo.v.forEach((v,pi)=>{const h=Math.max(0,v/maxV*H),x=gx+8+pi*barW,y=padT+H-h;
+      g+=`<rect x="${(x+1).toFixed(1)}" y="${y.toFixed(1)}" width="${(barW-2).toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${colors[pi%colors.length]}"><title>${esc(providers[pi])} — ${esc(mo.m)}: ${gbp(v)}</title></rect>`;
+      if(P===1&&v>0)g+=`<text x="${(x+barW/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#1d2b3f">${money(v)}</text>`;});
+    g+=`<text x="${gx+groupW/2}" y="${padT+H+16}" text-anchor="middle" font-size="10" fill="#6b7f95">${esc(mo.m)}</text>`;});
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${totalH}" width="${W}" height="${totalH}" style="max-width:100%;min-width:${Math.min(W,660)}px">${g}</svg></div>`;
+}
+function legendItem(p,i){return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted)"><span style="width:11px;height:11px;border-radius:3px;background:${FUND_SOL[i%FUND_SOL.length]}"></span>${esc(p)}</span>`;}
+function viewFunding(){
+  const f=D.funding;
+  let html=`<div class="pagehead"><h2>Funding</h2><span class="desc">lease-provider funding · added monthly</span></div>`;
+  if(!f||!f.providers.length) return html+`<div class="empty">No funding data yet. Add rows to <b>funding.xlsx</b> and rebuild.</div>`;
+  return html+`<div id="fundWrap">${fundFull(-1)}</div>`;
+}
+function showFund(sel){const el=document.getElementById("fundWrap");if(el){el.innerHTML=fundFull(sel);const mn=document.getElementById("main");if(mn)mn.scrollTop=0;}}
+function fundFull(sel){
+  const f=D.funding;const ring=a=>a?";box-shadow:0 0 0 3px var(--sky)":"";
+  let c=`<div class="kgrid">`;
+  c+=`<div class="kpi" style="background:linear-gradient(135deg,#2bbd77,#178a53);cursor:pointer${ring(sel<0)}" onclick="showFund(-1)"><div class="lab">Total funding — all</div><div class="val">${gbp(f.grand)}</div><div class="note">${f.months.length} month${f.months.length===1?'':'s'} · all providers</div></div>`;
+  if(f.last)c+=`<div class="kpi" style="background:linear-gradient(135deg,#6a5ce0,#3f3bb0);cursor:pointer" onclick="showFund(-1)"><div class="lab">Last month — ${esc(f.last.label)}</div><div class="val">${gbp(f.last.total)}</div><div class="note">all providers</div></div>`;
+  f.providers.forEach((p,i)=>{c+=`<div class="kpi" style="background:${FUND_GRAD[i%FUND_GRAD.length]};cursor:pointer${ring(sel===i)}" title="View ${esc(p)} month by month" onclick="showFund(${i})"><div class="lab">${esc(p)} ›</div><div class="val">${gbp(f.byProvider[i])}</div><div class="note">last month ${gbp(f.last?f.last.byProvider[i]:0)}</div></div>`;});
+  c+=`</div>`;
+  return c+fundContent(sel);
+}
+function fundContent(sel){
+  const f=D.funding;
+  if(sel<0){
+    let h=`<div class="section-title">Month-by-month funding — all providers <span style="font-size:11px;font-weight:500;color:var(--muted);margin-left:8px">tip: click a provider card above to focus on it</span></div>`;
+    h+=`<div class="card" style="padding:18px 20px">`+fundingChart(f.months,f.providers,FUND_SOL);
+    h+=`<div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap">`+f.providers.map((p,i)=>legendItem(p,i)).join("")+`</div></div>`;
+    h+=`<div class="section-title">By month &amp; provider</div><div class="card"><div class="tblwrap"><table>
+      <thead><tr><th>Month</th>${f.providers.map(p=>`<th class="num">${esc(p)}</th>`).join("")}<th class="num">Total</th></tr></thead><tbody>`;
+    f.months.forEach(mo=>{ h+=`<tr><td><b>${esc(mo.m)}</b></td>${mo.v.map(v=>`<td class="num">${gbp(v)}</td>`).join("")}<td class="num"><b>${gbp(mo.t)}</b></td></tr>`; });
+    h+=`<tr style="border-top:2px solid var(--border);background:var(--grey-bg)"><td><b>Total</b></td>${f.byProvider.map(v=>`<td class="num"><b>${gbp(v)}</b></td>`).join("")}<td class="num"><b>${gbp(f.grand)}</b></td></tr></tbody></table></div></div>`;
+    return h;
+  }
+  const name=f.providers[sel], col=FUND_SOL[sel%FUND_SOL.length];
+  const ms=f.months.map(mo=>({m:mo.m,v:[mo.v[sel]]}));
+  const total=f.byProvider[sel], last=f.last?f.last.byProvider[sel]:0;
+  const avg=f.months.length?total/f.months.length:0;
+  const best=f.months.reduce((a,mo)=>mo.v[sel]>a.v?{m:mo.m,v:mo.v[sel]}:a,{m:"—",v:-1});
+  let h=`<button class="backbtn" onclick="showFund(-1)">← All providers</button>`;
+  h+=miniCards([
+    {l:esc(name)+" — total",v:gbp(total),color:col,s:`${f.months.length} months`},
+    {l:"Last month",v:gbp(last),color:col,s:esc(f.last?f.last.label:"")},
+    {l:"Monthly average",v:gbp(avg),color:col,s:"across period"},
+    {l:"Highest month",v:gbp(best.v),color:col,s:esc(best.m)},
+  ]);
+  h+=`<div class="section-title">${esc(name)} — month by month</div><div class="card" style="padding:18px 20px">`+fundingChart(ms,[name],[col])+`</div>`;
+  h+=`<div class="card"><div class="ch"><h3>${esc(name)} — monthly funding</h3></div><div class="tblwrap"><table>
+    <thead><tr><th>Month</th><th class="num">Funding</th></tr></thead><tbody>`;
+  f.months.forEach(mo=>{ h+=`<tr><td><b>${esc(mo.m)}</b></td><td class="num">${gbp(mo.v[sel])}</td></tr>`; });
+  h+=`<tr style="border-top:2px solid var(--border);background:var(--grey-bg)"><td><b>Total</b></td><td class="num"><b>${gbp(total)}</b></td></tr></tbody></table></div></div>`;
+  return h;
+}
+
+/* ================= MOVERS ================= */
+function moverCard(rows,title,sub,accent){
+  const cap=20,n=rows.length;
+  let h=`<div class="card" style="margin-bottom:0"><div class="ch"><div><h3>${title}</h3><span class="sub">${sub}</span></div>
+    <span class="mtag" style="background:${accent.bg};color:${accent.fg}">${n.toLocaleString()}</span></div><div class="tblwrap"><table>
+    <thead><tr><th>Merchant</th><th class="num">May</th><th class="num">June</th><th class="num">Change</th></tr></thead><tbody>`;
+  if(!n)h+=`<tr><td colspan="4" style="padding:22px;text-align:center;color:var(--muted)">None this month</td></tr>`;
+  rows.forEach((r,i)=>{h+=`<tr class="${i>=cap?'xtra':''}"><td class="clk" onclick="openMID(${r.mid})" style="max-width:230px;overflow:hidden;text-overflow:ellipsis">${esc(r.trading||r.legal)}
+      <div class="sm" style="font-size:10.5px;color:var(--muted)">MID ${r.mid} · ${esc(r.partner||'no partner')}</div></td>
+      <td class="num">${r.presM?gbp2(r.earnM):'—'}</td><td class="num">${r.presJ?gbp2(r.earnJ):'—'}</td><td class="num">${diffPill(r.diff)}</td></tr>`;});
+  h+=`</tbody></table></div>`;
+  if(n>cap)h+=`<button class="showall" data-n="${n.toLocaleString()}" onclick="toggleCard(this)">View all ${n.toLocaleString()} ▼</button>`;
+  return h+`</div>`;
+}
+function moversContent(q){
+  const ql=(q||"").trim().toLowerCase();
+  let pool=MIDS, banner="";
+  if(ql){
+    pool=MIDS.filter(m=>(m.partner||"").toLowerCase().includes(ql));
+    if(!pool.length) return `<div class="empty">No merchants found for a sales partner matching “${esc(q)}”.</div>`;
+    const parts=[...new Set(pool.map(m=>m.partner))];
+    const tot=pool.reduce((s,m)=>s+m.diff,0);
+    banner=`<div class="changed" style="background:var(--purple-bg);border-color:#ddd0f5;color:var(--purple)">
+      <span class="arrow">Filtered to ${parts.length===1?esc(parts[0]):parts.length+" partners matching “"+esc(q)+"”"}:</span>
+      ${pool.length} MIDs · net change <b>${tot>=0?'+':'−'}${gbp(Math.abs(tot))}</b></div>`;
+  }
+  const decl=pool.filter(m=>m.presJ&&m.presM&&m.diff<-0.005).sort((a,b)=>a.diff-b.diff);
+  const gain=pool.filter(m=>m.presJ&&m.presM&&m.diff>0.005).sort((a,b)=>b.diff-a.diff);
+  const lost=pool.filter(m=>!m.presJ&&m.presM).sort((a,b)=>a.diff-b.diff);
+  const won =pool.filter(m=>m.presJ&&!m.presM).sort((a,b)=>b.diff-a.diff);
+  const sL=lost.reduce((s,m)=>s+m.diff,0), sW=won.reduce((s,m)=>s+m.diff,0);
+  const sD=decl.reduce((s,m)=>s+m.diff,0), sG=gain.reduce((s,m)=>s+m.diff,0);
+  const red={bg:"var(--red-bg)",fg:"var(--red)"},grn={bg:"var(--green-bg)",fg:"var(--green)"};
+  let html=banner;
+  html+=`<div class="section-title">Declines &nbsp;<span style="font-weight:600;color:var(--red)">${gbp(sD)}</span></div>
+    <div class="moverwrap">
+      ${moverCard(decl,"Continuing merchants — down","Present both months, earnings fell",red)}
+      ${moverCard(lost,"Lost from "+D.meta.curLabel+" book","In "+D.meta.prevLabel+", absent in "+D.meta.curLabel+" — churn / not re-loaded ("+gbp(sL)+")",red)}
+    </div>`;
+  html+=`<div class="section-title" style="margin-top:26px">Gains &nbsp;<span style="font-weight:600;color:var(--green)">+${gbp(sG)}</span></div>
+    <div class="moverwrap">
+      ${moverCard(gain,"Continuing merchants — up","Present both months, earnings rose",grn)}
+      ${moverCard(won,"New in "+D.meta.curLabel,"Added this month (+"+gbp(sW)+")",grn)}
+    </div>`;
+  return html;
+}
+function filterMovers(){const i=document.getElementById("moverQ");document.getElementById("moverBody").innerHTML=moversContent(i.value);}
+function clearMoverSearch(){const i=document.getElementById("moverQ");i.value="";i.closest(".searchbox").classList.remove("has-text");i.focus();document.getElementById("moverBody").innerHTML=moversContent("");}
+function viewMovers(){
+  let html=`<div class="pagehead"><h2>Biggest Movers</h2><span class="desc">every merchant with a month-on-month change — ${D.meta.prevLabel} → ${D.meta.curLabel}</span></div>`;
+  html+=`<div class="searchbox" style="max-width:560px;margin-bottom:6px">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg>
+    <input id="moverQ" list="partnerList" placeholder="Filter by sales partner… (blank = all merchants)" oninput="filterMovers();this.closest('.searchbox').classList.toggle('has-text',!!this.value)">
+    <button class="clearbtn" title="Clear" onclick="clearMoverSearch()">✕</button>
+  </div>
+  <datalist id="partnerList">${PARTNERS.map(p=>`<option value="${esc(p.name)}">`).join("")}</datalist>
+  <div class="searchhint" style="color:var(--muted);margin-bottom:16px">Type a sales partner to see only their declines, lost, gains and new merchants.</div>
+  <div id="moverBody">${moversContent("")}</div>`;
+  return html;
+}
+
+/* ================= SEARCH ================= */
+function viewSearch(preset){
+  let html=`<div class="pagehead"><h2>Search &amp; Analysis</h2><span class="desc">MID · merchant name · sales partner</span></div>`;
+  html+=`<div class="searchbox" style="max-width:640px;margin-bottom:6px">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg>
+    <input id="q" placeholder="e.g. 2101708960  ·  Stone Food  ·  Aajj Consultants" oninput="doSearch();this.closest('.searchbox').classList.toggle('has-text',!!this.value)">
+    <button class="clearbtn" title="Clear" onclick="clearSearch('q')">✕</button>
+  </div>
+  <div class="searchhint" style="color:var(--muted);margin-bottom:16px">Numeric input is treated as a MID. Text matches partners and merchant names.</div>
+  <div id="results"></div>`;
+  return html;
+}
+function doSearch(){
+  const q=document.getElementById("q").value.trim();
+  NAV = q ? [{t:"search",q:q}] : [];
+  navRender();
+}
+function searchResults(q){
+  const ql=q.toLowerCase();
+  // exact MID -> jump straight to the merchant
+  if(/^\d{4,}$/.test(q)&&MBYID[+q])return renderMID(MBYID[+q]);
+  // partner matches, ranked: exact > starts-with > contains, then by earnings
+  const pm=PARTNERS.filter(p=>p.name.toLowerCase().includes(ql))
+    .sort((a,b)=>rankName(a.name,ql)-rankName(b.name,ql)||b.earnJ-a.earnJ);
+  // merchant matches (mid / trading / legal)
+  const mm=MIDS.filter(m=>(""+m.mid).includes(q)||(m.trading||"").toLowerCase().includes(ql)||(m.legal||"").toLowerCase().includes(ql))
+    .sort((a,b)=>rankName(a.trading||a.legal,ql)-rankName(b.trading||b.legal,ql)||b.earnJ-a.earnJ);
+  // exact partner name -> straight in
+  const exact=PARTNERS.find(p=>p.name.toLowerCase()===ql);
+  if(exact)return renderPartner(exact);
+  // one clear partner hit on a text query -> straight in
+  if(pm.length===1 && !/^\d/.test(q) && mm.length<=pm[0].cntJ+2)return renderPartner(pm[0]);
+  let html=`<div style="font-size:12px;color:var(--muted);margin-bottom:14px">Results for “<b>${esc(q)}</b>” — ${pm.length} partner${pm.length===1?'':'s'}, ${mm.length.toLocaleString()} merchant${mm.length===1?'':'s'}</div>`;
+  if(pm.length){
+    html+=`<div class="section-title">Sales partners (${pm.length})</div><div class="reslist">`;
+    pm.slice(0,15).forEach(p=>{html+=`<div class="resitem" onclick="navGo({t:'partner',name:'${jsq(p.name)}'})">
+      <div><div class="nm">${esc(p.name)}</div><div class="sm">${p.cntJ} MIDs · ${D.meta.curLabel}</div></div>
+      <div style="text-align:right"><div style="font-weight:700">${gbp(p.earnJ)}</div>${diffPill(p.diff)}</div></div>`;});
+    html+=`</div>`;
+  }
+  if(mm.length){
+    html+=`<div class="section-title">Merchants (${mm.length.toLocaleString()})</div><div class="reslist">`;
+    mm.slice(0,40).forEach(r=>{html+=`<div class="resitem" onclick="navGo({t:'mid',mid:${r.mid}})">
+      <div><div class="nm">${esc(r.trading||r.legal)}</div><div class="sm">MID ${r.mid} · ${esc(r.partner||'no partner')}</div></div>
+      <div style="text-align:right"><div style="font-weight:700">${gbp2(r.earnJ)}</div>${diffPill(r.diff)}</div></div>`;});
+    if(mm.length>40)html+=`<div class="resitem" style="justify-content:center;color:var(--muted);cursor:default">Showing top 40 of ${mm.length.toLocaleString()} — refine your search to narrow down</div>`;
+    html+=`</div>`;
+  }
+  return html.includes("reslist")?html:`<div class="empty">No match for “${esc(q)}”. Try a full MID, merchant name or partner name.</div>`;
+}
+function rankName(name,ql){const n=(name||"").toLowerCase();if(n===ql)return 0;if(n.startsWith(ql))return 1;return 2;}
+
+/* ---- MID analysis ---- */
+function metricRow(lab,mv,jv,fmt,goodUp=true){
+  const d=jv-mv;const cls=Math.abs(d)<1e-9?"":(d>0===goodUp?"up":"down");
+  return `<tr><td>${lab}</td><td class="num">${fmt(mv)}</td><td class="num">${fmt(jv)}</td><td class="num ${cls}">${d>0?'+':d<0?'−':''}${fmt(Math.abs(d))}</td></tr>`;
+}
+function renderMID(r){
+  const m=D.meta;
+  const {why,sol,tone}=diagnoseMID(r);
+  let chips=`<span class="tag ${r.diff>=0?'g':'r'}">${r.diff>=0?'Up':'Down'} ${signPct(r.earnJ,r.earnM)}</span>`;
+  chips+=` <span class="tag n">${esc(r.opp||'—')}</span>`;
+  if(r.partner)chips+=` <span class="tag p" style="cursor:pointer" title="View this partner" onclick="navGo({t:'partner',name:'${jsq(r.partner)}'})">${esc(r.partner)} ›</span>`;
+  if(!r.presJ)chips+=` <span class="tag r">Not in June</span>`;
+  if(!r.presM)chips+=` <span class="tag g">New in June</span>`;
+  let html=`<button class="backbtn" onclick="navBack()">${backLabel()}</button>${crumbs()}`;
+  html+=`<div class="card" style="padding:22px 24px">
+    <div class="an-head">
+      <div><div class="t">${esc(r.trading||r.legal)}</div>
+        <div class="m">MID ${r.mid} · ${esc(r.legal)} · Rep ${esc(r.rep||'—')}</div>
+        <div class="chips">${chips}</div></div>
+      <div class="bignum"><div class="l">Residual change</div><div class="v ${r.diff>=0?'up':'down'}">${r.diff>=0?'+':'−'}${gbp2(Math.abs(r.diff))}</div>
+        <div class="m">${gbp2(r.earnM)} → ${gbp2(r.earnJ)}</div></div>
+    </div>`;
+  const volPc=pct(r.volJ,r.volM);
+  html+=miniCards([
+    {l:`${m.curLabel} residual`,v:gbp2(r.earnJ),color:"var(--deep)",s:"current month"},
+    {l:`${m.prevLabel} residual`,v:gbp2(r.earnM),color:"var(--muted)",s:"prior month"},
+    {l:r.diff>=0?"Increased by":"Decreased by",v:`${r.diff>=0?'+':'−'}${gbp2(Math.abs(r.diff))}`,color:r.diff>=0?"var(--green)":"var(--red)",vcolor:r.diff>=0?"var(--green)":"var(--red)",s:"£ change"},
+    {l:"Change %",v:signPct(r.earnJ,r.earnM),color:r.diff>=0?"var(--green)":"var(--red)",vcolor:r.diff>=0?"var(--green)":"var(--red)",s:"vs prior month"},
+    {l:"Sales volume",v:money(r.volJ),color:"var(--sky)",s:`${r.presM?signPct(r.volJ,r.volM):'new'} vs prior`},
+    {l:"Yield",v:r.bpsJ.toFixed(1)+" bps",color:"var(--purple)",s:`${r.bpsM.toFixed(1)} bps prior`},
+  ]);
+  if(r.entChg)html+=`<div class="changed"><span class="arrow">⚑ Entity code changed:</span> ${esc(r.entM)} <span class="arrow">→</span> ${esc(r.entJ)} &nbsp;— verify the merchant wasn’t migrated to a different acquiring entity / pricing.</div>`;
+  html+=`<div class="cmp"><div><div class="tblwrap"><table>
+    <thead><tr><th>Metric</th><th class="num">${m.prevLabel}</th><th class="num">${m.curLabel}</th><th class="num">Change</th></tr></thead><tbody>`;
+  html+=metricRow("Residual earnings",r.earnM,r.earnJ,gbp2);
+  html+=metricRow("Sales volume",r.volM,r.volJ,money);
+  html+=metricRow("Transactions",r.trxM,r.trxJ,x=>Math.round(x).toLocaleString());
+  html+=metricRow("MSC billed",r.mscM,r.mscJ,money);
+  html+=metricRow("Yield (bps)",r.bpsM,r.bpsJ,x=>x.toFixed(1));
+  html+=`<tr><td>Entity code</td><td class="num">${esc(r.entM||'—')}</td><td class="num">${esc(r.entJ||'—')}</td><td class="num">${r.entChg?'<span class="tag a">changed</span>':'—'}</td></tr>`;
+  html+=`<tr><td>Status</td><td class="num">${esc(r.stM||'—')}</td><td class="num">${esc(r.stJ||'—')}</td><td class="num">${r.stJ!==r.stM?'<span class="tag a">changed</span>':'—'}</td></tr>`;
+  html+=`<tr><td>Back-office stage</td><td class="num">${esc(r.boM||'—')}</td><td class="num">${esc(r.boJ||'—')}</td><td class="num">${r.boJ!==r.boM?'<span class="tag a">changed</span>':'—'}</td></tr>`;
+  html+=`</tbody></table></div></div>
+    <div>
+      <div class="diag ${tone}"><h4>${tone==='up'?'▲ What changed':'▼ Why it moved'}</h4><ul>${why.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      <div class="diag sol" style="margin-top:14px"><h4>✔ Recommended actions</h4><ul>${sol.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+    </div></div></div>`;
+  return html;
+}
+function diagnoseMID(r){
+  const why=[],sol=[];let tone=r.diff>=0?"up":"why";
+  const volCh=pct(r.volJ,r.volM), bpsCh=r.bpsJ-r.bpsM;
+  if(!r.presJ&&r.presM){
+    why.push(`Merchant has <b>no June record</b> — it left the datagrid. The full ${gbp2(r.earnM)} May residual is lost this month.`);
+    why.push(`Common causes: account closed, switched acquirer, or terminal not transacting / not yet re-loaded.`);
+    sol.push(`Confirm the closure reason with <b>${esc(r.partner||'the partner')}</b> — closed vs. churned vs. data lag.`);
+    sol.push(`If churned to a competitor, flag for win-back; if reboarded under a new entity, link the replacement MID so the residual is recaptured.`);
+    return {why,sol,tone:"why"};
+  }
+  if(r.presJ&&!r.presM){
+    why.push(`<b>New merchant</b> in ${D.meta.curLabel} — no ${D.meta.prevLabel} baseline. Added ${gbp2(r.earnJ)} to the book.`);
+    why.push(`Volume ${money(r.volJ)} at a ${r.bpsJ.toFixed(1)} bps yield.`);
+    sol.push(`Onboarding is healthy — monitor next month to confirm the merchant keeps transacting.`);
+    return {why,sol,tone:"up"};
+  }
+  // both present
+  if(r.diff>=0){
+    if(volCh>3)why.push(`Sales volume rose <b>${signPct(r.volJ,r.volM)}</b> (${money(r.volM)} → ${money(r.volJ)}); at ~${r.bpsJ.toFixed(1)} bps this lifted the residual.`);
+    if(bpsCh>0.2)why.push(`Effective yield improved from ${r.bpsM.toFixed(1)} to ${r.bpsJ.toFixed(1)} bps — better margin / mix or a rate change.`);
+    if(!why.length)why.push(`Residual up ${gbp2(r.diff)} on broadly stable volume — minor mix/rate movement.`);
+    sol.push(`No action needed. ${esc(r.partner||'Partner')} performing well — good candidate to reference for similar merchants.`);
+    return {why,sol,tone:"up"};
+  }
+  // decline
+  if(r.entChg){
+    why.push(`<b>Entity code changed ${esc(r.entM)} → ${esc(r.entJ)}.</b> A move to a different acquiring entity can reset pricing tier or your revenue-share and is a frequent cause of a sudden residual drop.`);
+    sol.push(`Reconcile the old and new entity MIDs; confirm revenue-share % carried over and the merchant wasn’t re-tiered.`);
+  }
+  const boLost=/not\s*trans/i.test(r.boJ)&&!/not\s*trans/i.test(r.boM);
+  if(boLost){why.push(`Back-office stage moved to <b>“${esc(r.boJ)}”</b> — the merchant stopped transacting mid-period, cutting billable volume.`);
+    sol.push(`Check the terminal is live; chase reactivation via ${esc(r.partner||'the partner')} if the merchant is still trading.`);}
+  if(volCh<-5){
+    const volPart=r.volM>0?(r.volM-r.volJ)*r.bpsM/10000:0;
+    why.push(`Sales volume fell <b>${signPct(r.volJ,r.volM)}</b> (${money(r.volM)} → ${money(r.volJ)}); at ${r.bpsM.toFixed(1)} bps that alone accounts for about ${gbp2(volPart)} of the drop.`);
+    sol.push(`Assess whether the dip is seasonal or a genuine decline — if volume is down 2+ months, have ${esc(r.partner||'the partner')} engage the merchant.`);
+  }
+  if(bpsCh<-0.3){
+    why.push(`Effective yield fell from ${r.bpsM.toFixed(1)} to ${r.bpsJ.toFixed(1)} bps — margin compression. Since April, Elavon deducts card-scheme fees from residual rows (~2.4% of residual), and a buy-rate/MSC change can add to this.`);
+    sol.push(`Review the merchant’s pricing — a small MSC uplift or buy-rate renegotiation restores the eroded margin.`);
+  }
+  if(!why.length)why.push(`Residual down ${gbp2(Math.abs(r.diff))} with volume broadly flat — small rate/mix and scheme-fee effects.`);
+  if(!sol.length)sol.push(`Monitor next month; if the decline persists, review pricing and trading status with ${esc(r.partner||'the partner')}.`);
+  return {why,sol,tone:"why"};
+}
+
+/* ---- Partner analysis ---- */
+function renderPartner(p){
+  const rows=MIDS.filter(m=>m.partner===p.name);
+  const down=rows.filter(m=>m.diff<-0.005).sort((a,b)=>a.diff-b.diff);
+  const up=rows.filter(m=>m.diff>0.005);
+  const lost=rows.filter(m=>!m.presJ&&m.presM);
+  const gained=rows.filter(m=>m.presJ&&!m.presM);
+  const entc=rows.filter(m=>m.entChg);
+  const lostSum=lost.reduce((s,m)=>s+m.diff,0);
+  const declSum=down.filter(m=>m.presJ).reduce((s,m)=>s+m.diff,0);
+  const {why,sol}=diagnosePartner(p,{rows,down,up,lost,gained,entc,lostSum,declSum});
+  const tone=p.diff>=0?"up":"why";
+  let html=`<button class="backbtn" onclick="navBack()">${backLabel()}</button>${crumbs()}`;
+  html+=`<div class="card" style="padding:22px 24px">
+    <div class="an-head">
+      <div><div class="t">${esc(p.name)}</div>
+        <div class="m">Sales Partner · ${p.cntJ} MIDs (${D.meta.curLabel}) · ${p.cntM} (${D.meta.prevLabel})</div>
+        <div class="chips"><span class="tag ${p.diff>=0?'g':'r'}">${p.diff>=0?'Up':'Down'} ${signPct(p.earnJ,p.earnM)}</span>
+          ${lost.length?`<span class="tag r">${lost.length} lost MID${lost.length>1?'s':''}</span>`:''}
+          ${gained.length?`<span class="tag g">${gained.length} new</span>`:''}
+          ${entc.length?`<span class="tag a">${entc.length} entity change${entc.length>1?'s':''}</span>`:''}</div></div>
+      <div class="bignum"><div class="l">Residual change</div><div class="v ${p.diff>=0?'up':'down'}">${p.diff>=0?'+':'−'}${gbp(Math.abs(p.diff))}</div>
+        <div class="m">${gbp(p.earnM)} → ${gbp(p.earnJ)}</div></div>
+    </div></div>`;
+  const cont=rows.filter(m=>m.presJ&&m.presM);
+  const incC=cont.filter(m=>m.diff>0.005), decC=cont.filter(m=>m.diff<-0.005);
+  const gainSum=gained.reduce((s,m)=>s+m.diff,0), incSum=incC.reduce((s,m)=>s+m.diff,0), decSum=decC.reduce((s,m)=>s+m.diff,0);
+  const pq=jsq(p.name);
+  html+=miniCards([
+    {l:`${D.meta.curLabel} residual`,v:gbp(p.earnJ),color:"var(--deep)",s:`${p.cntJ} MIDs`,onclick:`showPartnerCat('${pq}','all')`,title:"Show all merchants"},
+    {l:`${D.meta.prevLabel} residual`,v:gbp(p.earnM),color:"var(--muted)",s:`${p.cntM} MIDs`,onclick:`showPartnerCat('${pq}','all')`,title:"Show all merchants"},
+    {l:p.diff>=0?"Increased by":"Decreased by",v:`${p.diff>=0?'+':'−'}${gbp(Math.abs(p.diff))}`,color:p.diff>=0?"var(--green)":"var(--red)",vcolor:p.diff>=0?"var(--green)":"var(--red)",s:`${signPct(p.earnJ,p.earnM)}`,onclick:`showPartnerCat('${pq}','all')`,title:"Show all merchants"},
+    {l:"Newly added",v:gained.length.toLocaleString(),color:"var(--green)",s:`+${gbp(gainSum)}`,onclick:`showPartnerCat('${pq}','new')`,title:"Show new merchants"},
+    {l:"Lost business",v:lost.length.toLocaleString(),color:"var(--red)",s:`${gbp(lostSum)}`,onclick:`showPartnerCat('${pq}','lost')`,title:"Show lost merchants"},
+    {l:"Residual increased",v:incC.length.toLocaleString(),color:"var(--green)",s:`+${gbp(incSum)}`,onclick:`showPartnerCat('${pq}','inc')`,title:"Show increased merchants"},
+    {l:"Residual decreased",v:decC.length.toLocaleString(),color:"var(--red)",s:`${gbp(decSum)}`,onclick:`showPartnerCat('${pq}','dec')`,title:"Show decreased merchants"},
+  ]);
+  html+=`<div class="card" style="padding:22px 24px">
+    <div class="cmp">
+      <div class="diag ${tone}"><h4>${tone==='up'?'▲ What changed':'▼ Why the book moved'}</h4><ul>${why.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      <div class="diag sol"><h4>✔ Recommended actions</h4><ul>${sol.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+    </div></div>`;
+  // MID table (filterable via the KPI cards above)
+  html+=`<div id="pmids">${partnerMidsTable(p.name,'all')}</div>`;
+  return html;
+}
+const PCAT={all:{lab:"All merchants",f:r=>true},
+  new:{lab:"Newly added",f:r=>r.presJ&&!r.presM},
+  lost:{lab:"Lost business",f:r=>!r.presJ&&r.presM},
+  inc:{lab:"Residual increased",f:r=>r.presJ&&r.presM&&r.diff>0.005},
+  dec:{lab:"Residual decreased",f:r=>r.presJ&&r.presM&&r.diff<-0.005}};
+function showPartnerCat(name,cat){const el=document.getElementById("pmids");if(el)el.innerHTML=partnerMidsTable(name,cat);}
+function partnerMidsTable(name,cat){
+  const c=PCAT[cat]||PCAT.all;
+  const ordered=MIDS.filter(m=>m.partner===name&&c.f(m)).sort((a,b)=>a.diff-b.diff);
+  const reset=cat==="all"?"":`<button onclick="showPartnerCat('${jsq(name)}','all')" style="background:var(--grey-bg);border:0;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--deep);cursor:pointer">← All merchants</button>`;
+  let h=`<div class="card"><div class="ch"><div><h3>Merchants under ${esc(name)}</h3><span class="sub">${c.lab} · ${ordered.length} MID${ordered.length===1?'':'s'}${cat==='all'?' · biggest declines first':''}</span></div>${reset}</div>`;
+  if(!ordered.length){return h+`<div class="empty">No merchants in “${c.lab}” for this partner.</div></div>`;}
+  h+=`<div class="tblwrap"><table>
+    <thead><tr><th>Merchant</th><th class="num">${D.meta.prevLabel}</th><th class="num">${D.meta.curLabel}</th><th class="num">Change</th><th>Entity</th><th>Flags</th></tr></thead><tbody>`;
+  ordered.forEach(r=>{
+    let fl="";if(!r.presJ&&r.presM)fl+='<span class="tag r">lost</span> ';if(r.presJ&&!r.presM)fl+='<span class="tag g">new</span> ';
+    if(r.entChg)fl+='<span class="tag a">entity</span> ';
+    if(/not\s*trans/i.test(r.boJ))fl+='<span class="tag n">not trading</span>';
+    h+=`<tr><td class="clk" onclick="navGo({t:'mid',mid:${r.mid}})">${esc(r.trading||r.legal)}<div class="sm" style="font-size:10.5px;color:var(--muted)">MID ${r.mid}</div></td>
+      <td class="num">${r.presM?gbp2(r.earnM):'—'}</td><td class="num">${r.presJ?gbp2(r.earnJ):'—'}</td><td class="num">${diffPill(r.diff)}</td>
+      <td>${r.entChg?`<span class="tag a">${esc(r.entM)}→${esc(r.entJ)}</span>`:esc(r.entJ||r.entM||'—')}</td>
+      <td>${fl||'—'}</td></tr>`;});
+  h+=`</tbody></table></div></div>`;
+  return h;
+}
+function diagnosePartner(p,x){
+  const why=[],sol=[];
+  if(p.diff>=0){
+    why.push(`Book grew <b>${gbp(p.diff)}</b> (${signPct(p.earnJ,p.earnM)}) to ${gbp(p.earnJ)}.`);
+    if(x.gained.length)why.push(`${x.gained.length} new merchant${x.gained.length>1?'s':''} added ${gbp(x.gained.reduce((s,m)=>s+m.diff,0))}.`);
+    if(x.up.length)why.push(`${x.up.length} merchants grew, ${x.down.length} declined.`);
+    sol.push(`Momentum is positive — keep feeding this partner leads and use them as a benchmark.`);
+    if(x.entc.length)sol.push(`${x.entc.length} entity-code change${x.entc.length>1?'s':''} in the book — spot-check pricing carried over.`);
+    return {why,sol};
+  }
+  why.push(`Book fell <b>${gbp(Math.abs(p.diff))}</b> (${signPct(p.earnJ,p.earnM)}) to ${gbp(p.earnJ)}.`);
+  if(x.lost.length)why.push(`<b>${x.lost.length} MID${x.lost.length>1?'s':''} dropped out</b> of the June datagrid — ${gbp(Math.abs(x.lostSum))} of the fall. Largest: ${x.lost.slice(0,3).map(m=>esc(m.trading||m.legal)).join(", ")}.`);
+  if(x.declSum<-0.005)why.push(`Continuing merchants declined a net ${gbp(Math.abs(x.declSum))} — volume dips and margin/scheme-fee erosion.`);
+  if(x.entc.length)why.push(`${x.entc.length} merchant${x.entc.length>1?'s':''} changed entity code — possible re-tiering / revenue-share reset.`);
+  if(x.down.length)why.push(`${x.down.length} of ${x.rows.length} MIDs down vs ${x.up.length} up.`);
+  if(x.lost.length)sol.push(`Chase the ${x.lost.length} lost MID${x.lost.length>1?'s':''} first — biggest recovery. Confirm closed vs churned vs data-lag with the partner.`);
+  if(x.entc.length)sol.push(`Reconcile the entity-changed MIDs against replacement accounts to recapture residual.`);
+  sol.push(`Share the decline list with ${esc(p.name)} and agree win-back / reactivation actions on the top droppers.`);
+  return {why,sol};
+}
+
+/* ================= INIT ================= */
+function toggleCard(btn){const c=btn.closest(".card");const open=c.classList.toggle("open");
+  const n=btn.dataset.n;btn.textContent=open?"Show less ▲":("View all "+n+" ▼");}
+function init(){boot();buildNav();show("dash");}
+</script>
+
+<!-- Lease embed: auto-unlock (parent handles the passcode) -->
+<script>(function(){var g=document.getElementById("gate");if(g)g.style.display="none";var a=document.getElementById("app");if(a)a.classList.add("on");try{if(typeof init==="function")init();}catch(e){console.error(e);}})();</script>
+</body>
+</html>

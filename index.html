@@ -167,6 +167,7 @@
   aside .meta{border-top-color:#f0dee5;color:#8f7a86}
   aside .meta b{color:#b53a72}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="gate">
@@ -284,14 +285,15 @@ function buildNav(){
   const nav=document.getElementById("nav");let h="";
   MAIN.forEach(m=>{
     let cnt="";
-    if(m.k==="all")cnt='<span class="cnt">'+D.summary.total.toLocaleString()+'</span>';
+    if(m.k==="all")cnt='<span class="cnt">'+ROWS.length.toLocaleString()+'</span>';
     if(m.subs){
       h+='<button class="navbtn" id="nav-'+m.k+'" data-tab="'+m.k+'" onclick="openEmbed(\''+m.k+'\')">'+tile(m)+'<span>'+m.label+'</span>'+CARET+'</button>';
       h+='<div class="subnav" id="grp-'+m.k+'">';
       m.subs.forEach(s=>{h+='<button class="subbtn" data-group="'+m.k+'" data-sub="'+s.k+'" onclick="openSub(\''+m.k+'\',\''+s.k+'\')">'+esc(s.label)+'</button>';});
       h+='</div>';
     } else {
-      h+='<button class="navbtn" data-tab="'+m.k+'" onclick="show(\''+m.k+'\')">'+tile(m)+'<span>'+m.label+'</span>'+cnt+'</button>';
+      const handler=(m.k==="dash")?"goHome()":"show('"+m.k+"')";
+      h+='<button class="navbtn" data-tab="'+m.k+'" onclick="'+handler+'">'+tile(m)+'<span>'+m.label+'</span>'+cnt+'</button>';
     }
   });
   h+='<div class="navsep">PS Lease Tools</div>';
@@ -303,6 +305,7 @@ function buildNav(){
     "<br>Funding: <b>"+esc(D.meta.fundingLabel)+"</b>";
 }
 let current=null, HIST=[], lastQ="", pendingSub=null, pendingArg=null;
+function goHome(){lastQ="";resBack=null;curBiz=null;show("dash");}
 function backBtn(){return HIST.length?'<button class="lbtn" onclick="goBack()" style="margin-right:2px">← Back</button>':'';}
 function goBack(){const p=HIST.pop()||"dash";show(p,true);}
 /* ---- sidebar dropdown (Residual / Arrears sub-tabs) ---- */
@@ -567,21 +570,24 @@ function bizCard(r,expanded){
 }
 
 /* ===== All Businesses ===== */
-const allState={q:"",status:"",partner:"",sort:-1,dir:1,page:1};
+const allState={q:"",status:"",partner:"",arr:"",res:"",sort:-1,dir:1,page:1};
 function renderAll(){
   const s=D.summary;
-  let h='<div class="pagehead">'+backBtn()+tile(MAIN[1])+'<div><h2>All Businesses</h2><div class="desc">from the MID List · '+s.total.toLocaleString()+' total · cards update with your filter</div></div></div>';
+  let h='<div class="pagehead">'+backBtn()+tile(MAIN[1])+'<div><h2>All Businesses</h2><div class="desc">'+ROWS.length.toLocaleString()+' businesses (MID list + arrears + residual) · cards update with your filter</div></div></div>';
   h+='<div class="kgrid" id="allkpi" style="margin-bottom:18px"></div>';
   // toolbar
   const statuses=Object.keys(s.byStatus).sort();
   const partners=[...new Set(ROWS.map(r=>r[CI.Partner]).filter(Boolean))].sort();
   h+='<div class="toolbar"><div class="searchbox'+(allState.q?' has':'')+'" style="max-width:320px"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"/></svg>'+
-    '<input id="allq" value="'+esc(allState.q)+'" placeholder="Search MID, Lease or name…" oninput="allState.q=this.value;allState.page=1;this.closest(\'.searchbox\').classList.toggle(\'has\',!!this.value);renderAllBody()">'+
+    '<input id="allq" value="'+esc(allState.q)+'" placeholder="Search MID, Lease or name…" oninput="allState.q=this.value;allState.page=1;this.closest(\'.searchbox\').classList.toggle(\'has\',!!this.value);allBodyDebounced()">'+
     '<button class="clr" onclick="allState.q=\'\';var i=document.getElementById(\'allq\');i.value=\'\';i.closest(\'.searchbox\').classList.remove(\'has\');allState.page=1;renderAllBody()">&times;</button></div>'+
     '<select class="f" onchange="allState.status=this.value;allState.page=1;renderAllBody()"><option value="">All statuses</option><option value="__active">Active only</option><option value="__closed">Closed only</option>'+
     statuses.map(st=>'<option value="'+esc(st)+'">'+esc(st)+' ('+s.byStatus[st]+')</option>').join("")+'</select>'+
     '<select class="f" onchange="allState.partner=this.value;allState.page=1;renderAllBody()"><option value="">All sales partners</option>'+
     partners.map(p=>'<option>'+esc(p)+'</option>').join("")+'</select>'+
+    '<select class="f" onchange="allState.arr=this.value;allState.page=1;renderAllBody()"><option value="">Arrears: all</option><option value="y">In arrears</option><option value="n">No arrears</option></select>'+
+    '<select class="f" onchange="allState.res=this.value;allState.page=1;renderAllBody()"><option value="">Residual: all</option><option value="y">Earning residual</option><option value="n">No residual</option></select>'+
+    '<button class="lbtn" onclick="exportAll()" title="Export the filtered rows to Excel" style="margin-left:auto">⤓ Export to Excel</button>'+
     '<span class="stat" id="allstat"></span></div>';
   h+='<div id="allBody"></div>';
   h+=partnerPanel(12);
@@ -596,12 +602,26 @@ function allFiltered(){
   else if(st==="__closed")rows=rows.filter(r=>!isActive(r));
   else if(st)rows=rows.filter(r=>String(r[CI.Status])===st);
   if(allState.partner)rows=rows.filter(r=>String(r[CI.Partner])===allState.partner);
+  if(allState.arr==="y")rows=rows.filter(r=>typeof r[CI.Arrears]==="number"&&r[CI.Arrears]>0.005);
+  else if(allState.arr==="n")rows=rows.filter(r=>!(typeof r[CI.Arrears]==="number"&&r[CI.Arrears]>0.005));
+  if(allState.res==="y")rows=rows.filter(r=>typeof r[CI["Last Residual"]]==="number"&&r[CI["Last Residual"]]>0.005);
+  else if(allState.res==="n")rows=rows.filter(r=>!(typeof r[CI["Last Residual"]]==="number"&&r[CI["Last Residual"]]>0.005));
   const q=allState.q.trim().toLowerCase();
   if(q)rows=rows.filter(r=>String(r[CI.MID]).includes(q)||String(r[CI["Legal Name"]]).toLowerCase().includes(q)||String(r[CI["Trading Name"]]).toLowerCase().includes(q)||String(r[CI.Partner]).toLowerCase().includes(q)||String(r[CI.Leases]).toLowerCase().includes(q));
   if(allState.sort>-1){const i=allState.sort,d=allState.dir;rows=[...rows].sort((a,b)=>{const x=a[i],y=b[i];if(typeof x==="number"&&typeof y==="number")return(x-y)*d;return String(x).localeCompare(String(y),undefined,{numeric:true})*d;});}
   return rows;
 }
-const SHOWCOLS=["MID","Status","Legal Name","Trading Name","Partner","First Batch","Last Batch","Last Residual","Arrears"];
+const SHOWCOLS=["MID","Status","Legal Name","Trading Name","Partner","Entity","Sales Rep","First Batch","Last Batch","Last Residual","Arrears"];
+function exportAll(){
+  if(typeof XLSX==="undefined"){alert("Excel library still loading — try again in a moment.");return;}
+  const rows=allFiltered();
+  const out=rows.map(function(r){var o={};SHOWCOLS.forEach(function(c){var v=r[CI[c]];o[c]=(v==null?"":v);});
+    var bb=bizBuyback(r);o.Buyback=(bb==null?"":+bb.toFixed(2));
+    o.Leases=r[CI.Leases]==null?"":r[CI.Leases];return o;});
+  const ws=XLSX.utils.json_to_sheet(out),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"All Businesses");
+  XLSX.writeFile(wb,"Lease Portal - All Businesses ("+rows.length+").xlsx");
+}
 function allKPIs(rows){
   const active=rows.filter(isActive).length;
   const closed=rows.length-active;
@@ -623,10 +643,10 @@ function renderAllBody(){
   const pages=Math.max(1,Math.ceil(rows.length/PAGE));if(allState.page>pages)allState.page=pages;
   const slice=rows.slice((allState.page-1)*PAGE,allState.page*PAGE);
   const st=document.getElementById("allstat");if(st)st.textContent=rows.length.toLocaleString()+" businesses";
-  const NC=SHOWCOLS.length+1;
+  const NC=SHOWCOLS.length+2;
   let h='<div class="tablewrap"><table><thead><tr>';
   SHOWCOLS.forEach(c=>{const i=CI[c];const ar=allState.sort===i?(allState.dir===1?" ▲":" ▼"):"";h+='<th onclick="sortAll('+i+')">'+esc(c)+ar+'</th>';});
-  h+='<th></th></tr></thead><tbody>';
+  h+='<th class="num">Buyback</th><th></th></tr></thead><tbody>';
   if(!slice.length)h+='<tr><td colspan="'+NC+'"><div class="empty">No matches.</div></td></tr>';
   slice.forEach(r=>{const mid=String(r[CI.MID]);h+='<tr>';SHOWCOLS.forEach(c=>{const i=CI[c],v=r[i];
     if(c==="MID")h+='<td class="clk" onclick="show(\'dash\');setTimeout(()=>{document.getElementById(\'q\').value=\''+r[CI.MID]+'\';runSearch();},30)">'+esc(v)+'</td>';
@@ -635,13 +655,25 @@ function renderAllBody(){
     else if(c==="Arrears")h+='<td class="arr">'+(typeof v==="number"?gbp2(v):"")+'</td>';
     else if(c==="Partner")h+='<td>'+(v?'<span class="clk" onclick="gotoPartner(\''+jsq(v)+'\')">'+esc(v)+'</span>':'')+'</td>';
     else h+='<td title="'+esc(v)+'">'+esc(v)+'</td>';});
+    const bb=bizBuyback(r);
+    h+='<td class="num">'+(bb==null?"—":gbp2(bb))+'</td>';
     h+='<td class="num"><button class="lbtn xs" onclick="toggleRow(this)">View more</button></td></tr>';
     h+='<tr class="detrow" style="display:none"><td colspan="'+NC+'">'+rowDetail(r)+'</td></tr>';});
   h+='</tbody></table></div>';
   h+='<div class="pager"><button '+(allState.page<=1?"disabled":"")+' onclick="allState.page--;renderAllBody()">‹ Prev</button><span style="font-size:12px;color:var(--muted)">Page '+allState.page+' of '+pages+'</span><button '+(allState.page>=pages?"disabled":"")+' onclick="allState.page++;renderAllBody()">Next ›</button></div>';
   document.getElementById("allBody").innerHTML=h;
 }
+let _allT=null;function allBodyDebounced(){clearTimeout(_allT);_allT=setTimeout(renderAllBody,120);}
 function sortAll(i){if(allState.sort===i)allState.dir*=-1;else{allState.sort=i;allState.dir=1;}renderAllBody();}
+/* total buyback for a business = sum over its leases of max(cp*(term-paid),0)+arrears */
+function bizBuyback(r){
+  const dt=D.detail&&D.detail[String(r[CI.MID])];
+  if(!dt||!dt.l||!dt.l.length)return null;
+  let s=0,any=false;
+  dt.l.forEach(function(x){const cp=typeof x[2]==="number"?x[2]:parseFloat(x[2]);let term=parseFloat(x[6]),paid=parseFloat(x[7]);const arr=typeof x[1]==="number"?x[1]:0;
+    if(isFinite(cp)&&isFinite(term)){if(!isFinite(paid))paid=0;s+=Math.max(cp*(term-paid),0)+arr;any=true;}});
+  return any?s:null;
+}
 function toggleRow(btn){var tr=btn.closest("tr").nextElementSibling;if(!tr||!tr.classList.contains("detrow"))return;var open=tr.style.display==="none";tr.style.display=open?"":"none";btn.textContent=open?"View less":"View more";btn.classList.toggle("on",open);}
 function rowDetail(r){
   var skip={};SHOWCOLS.forEach(function(c){skip[c]=1;});skip["Active"]=1;skip["Leases"]=1;

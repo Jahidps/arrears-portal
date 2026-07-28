@@ -257,6 +257,15 @@ const gbp=n=>"£"+Math.round(+n||0).toLocaleString("en-GB");
 const gbp2=n=>"£"+(+n||0).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
 function tile(m){return '<span class="navtile">'+(m.ic?'<svg viewBox="0 0 24 24" fill="currentColor"><path d="'+m.ic+'"/></svg>':m.label[0])+'</span>';}
 function statusTag(s){const n=String(s).toLowerCase();let c="t-n";if(/open|hold|re-?open|reserve/.test(n))c="t-g";else if(/deactiv|fraud|closed|terminat/.test(n))c="t-r";return '<span class="tag '+c+'">'+esc(s)+'</span>';}
+/* months due from commencement date (DD/MM/YYYY) to today — the "To be Paid" count */
+function monthsToDate(s){
+  const m=String(s==null?"":s).match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(!m)return "—";
+  let d=+m[1], mo=+m[2], y=+m[3]; if(y<100)y+=2000;
+  const t=new Date();
+  let n=(t.getFullYear()-y)*12+(t.getMonth()+1-mo)+(t.getDate()>=d?1:0);
+  return n>0?n:0;
+}
 function isActive(row){return row[CI.Active]===1;}
 
 /* ===== nav ===== */
@@ -531,17 +540,16 @@ function bizCard(r,expanded){
   h+='<div class="sect">Arrears &amp; Leases'+(leases.length?' &middot; '+leases.length:'')+'</div>';
   if(leases.length){
     h+='<div class="tablewrap" style="max-height:none;box-shadow:none;border:0;border-radius:0"><table>'+
-      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Contract Pay</th><th class="num">Rental</th><th class="num">Term</th><th class="num">Paid</th><th>Commencement</th><th>End Date</th><th>Status</th><th>Missed</th></tr></thead><tbody>';
+      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Contract Pay</th><th class="num">Term</th><th class="num">To be Paid</th><th class="num">Paid</th><th>Commencement</th><th>End Date</th><th>Status</th></tr></thead><tbody>';
     leases.forEach(function(x){h+='<tr><td>'+esc(x[0])+'</td>'+
       '<td class="arr">'+(typeof x[1]==="number"?gbp2(x[1]):"")+'</td>'+
       '<td class="num">'+(typeof x[2]==="number"?gbp2(x[2]):"—")+'</td>'+
-      '<td class="num">'+(typeof x[3]==="number"?gbp2(x[3]):"—")+'</td>'+
       '<td class="num">'+esc(x[6]||"—")+'</td>'+
+      '<td class="num">'+monthsToDate(x[4])+'</td>'+
       '<td class="num">'+esc(x[7]||"—")+'</td>'+
       '<td>'+esc(x[4]||"—")+'</td>'+
       '<td>'+esc(x[5]||"—")+'</td>'+
-      '<td>'+(x[8]?statusTag(x[8]):"—")+'</td>'+
-      '<td>'+esc(x[9]||"—")+'</td></tr>';});
+      '<td>'+(x[8]?statusTag(x[8]):"—")+'</td></tr>';});
     h+='</tbody></table></div>';
   } else { h+='<div class="hint" style="padding:10px 22px 16px">No lease or arrears records linked to this MID.</div>'; }
   return h+'</div>';

@@ -175,6 +175,7 @@
 <!-- Sales Partner Analytics: charts + Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="midbatch.js?v=20260728203513"></script>
 <style>
   .an-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:18px}
   .an-card{background:#fff;border:1px solid #e4ecf6;border-radius:16px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(11,31,63,.05)}
@@ -856,7 +857,7 @@ function toggleCard(btn){const c=btn.closest(".card");const open=c.classList.tog
   const n=btn.dataset.n;btn.textContent=open?"Show less ▲":("View all "+n+" ▼");}
 /* ================= SALES PARTNER ANALYTICS ================= */
 let PA=null;
-let AN={partner:null,cat:"",q:"",sort:"delta",dir:1,_rows:[]};
+let AN={partner:null,cat:"",reason:"",q:"",sort:"delta",dir:1,_rows:[]};
 let anCharts={};
 function computeAnalytics(){
   if(PA)return PA;
@@ -871,7 +872,8 @@ function computeAnalytics(){
     if(cat==="inc"){e.inc.n++;e.inc.v+=delta;}
     else if(cat==="dec"){e.dec.n++;e.dec.v+=delta;}
     else{e.lost.n++;e.lost.v+=delta;}
-    e.rows.push({mid:m.mid,trading:m.trading,legal:m.legal,prev:+m.earnM,cur:+m.earnJ,delta:delta,cat:cat});
+    e.rows.push({mid:m.mid,trading:m.trading,legal:m.legal,prev:+m.earnM,cur:+m.earnJ,delta:delta,cat:cat,
+      vJ:+m.volJ||0,vM:+m.volM||0,tJ:+m.trxJ||0,tM:+m.trxM||0,boJ:m.boJ||"",entJ:m.entJ||"",entM:m.entM||""});
   });
   PA=Object.keys(map).map(function(k){var p=map[k];p.total=p.inc.n+p.dec.n+p.lost.n;p.net=+(p.inc.v+p.dec.v+p.lost.v).toFixed(2);return p;})
      .filter(function(p){return p.total>0;});
@@ -921,13 +923,46 @@ function anBuild(cat,color,isMoney,data){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var d=data[c.dataIndex];return isMoney?(gbp(d.val)+" · "+d.n+" business(es)"):(d.n+" business(es) · "+gbp(d.vv)+" lost");}}}},
       onClick:function(evt,els){if(els&&els.length){anSelect(data[els[0].index].name,cat);}}}});
 }
-function anSelect(name,cat){AN.partner=name;AN.cat=cat||"";AN.q="";AN.sort="delta";AN.dir=1;anRenderDetail();var d=document.getElementById("an-detail");if(d)d.scrollIntoView({behavior:"smooth",block:"start"});}
+function anSelect(name,cat){AN.partner=name;AN.cat=cat||"";AN.reason="";AN.q="";AN.sort="delta";AN.dir=1;anRenderDetail();var d=document.getElementById("an-detail");if(d)d.scrollIntoView({behavior:"smooth",block:"start"});}
+/* Reason a merchant's residual moved — earnings track card volume (~18bps),
+   with scheme-fee/rate-mix and stopped-trading as secondary drivers (see Elavon_Earnings_Logic.md) */
+function anReasonInfo(r){
+  const vJ=+r.vJ||0, vM=+r.vM||0;
+  const notTrans=/not/i.test(String(r.boJ||""));
+  const volPct=vM>0?((vJ-vM)/vM*100):(vJ>0?100:0);
+  const planChg=r.entJ!==""&&r.entM!==""&&String(r.entJ)!==String(r.entM);
+  if(r.cat==="lost") return (vJ===0||notTrans)?{k:"stopped",t:"Stopped transacting — no card volume this month"}:{k:"none",t:"No residual recorded this month"};
+  if(r.cat==="dec"){
+    if(vJ===0&&vM>0) return {k:"stopped",t:"Stopped transacting — no card volume"};
+    if(notTrans) return {k:"nottrans",t:"Flagged not transacting"};
+    if(volPct<=-2) return {k:"voldown",t:"Lower card turnover ("+volPct.toFixed(0)+"% volume)"};
+    if(planChg) return {k:"plan",t:"Pricing / plan change"};
+    return {k:"scheme",t:"Scheme fees / rate mix (volume ~steady)"};
+  }
+  if(r.cat==="inc"){
+    if(vM===0&&vJ>0) return {k:"started",t:"Started / resumed transacting"};
+    if(volPct>=2) return {k:"volup",t:"Higher card turnover (+"+volPct.toFixed(0)+"% volume)"};
+    if(planChg) return {k:"plan",t:"Pricing / plan change"};
+    return {k:"bettermix",t:"Better rate mix (volume ~steady)"};
+  }
+  return {k:"none",t:"—"};
+}
+function anReason(r){return anReasonInfo(r).t;}
+function anReasonCat(r){return anReasonInfo(r).k;}
+const REASON_LABELS={stopped:"Stopped transacting",nottrans:"Flagged not transacting",voldown:"Lower card turnover",scheme:"Scheme fees / rate mix",plan:"Pricing / plan change",started:"Started / resumed",volup:"Higher card turnover",bettermix:"Better rate mix",none:"No change reason"};
+function lastBatch(mid){return (window.MIDBATCH&&window.MIDBATCH[String(mid)])||"—";}
+function midStatus(mid){return (window.MIDSTATUS&&window.MIDSTATUS[String(mid)])||"—";}
 function anRenderDetail(){
   const d=document.getElementById("an-detail");if(!d)return;
   if(!AN.partner){d.innerHTML='<div class="an-hint" style="padding:14px 2px">Click a partner bar in any chart above to list its businesses — with search, filter, sort and Excel export. Click a MID to open that business.</div>';return;}
   const p=computeAnalytics().find(function(x){return x.name===AN.partner;});if(!p){d.innerHTML="";return;}
   let rows=p.rows.slice();
   if(AN.cat)rows=rows.filter(function(r){return r.cat===AN.cat;});
+  // distinct reason keys available for the current category selection (for the filter dropdown)
+  const rkeys=[],seenk={};
+  rows.forEach(function(r){var k=anReasonCat(r);if(!seenk[k]){seenk[k]=1;rkeys.push(k);}});
+  if(AN.reason&&!seenk[AN.reason])AN.reason="";
+  if(AN.reason)rows=rows.filter(function(r){return anReasonCat(r)===AN.reason;});
   if(AN.q){var q=AN.q.toLowerCase();rows=rows.filter(function(r){return String(r.mid).toLowerCase().indexOf(q)>-1||String(r.trading||"").toLowerCase().indexOf(q)>-1||String(r.legal||"").toLowerCase().indexOf(q)>-1;});}
   rows.sort(function(a,b){var x=a[AN.sort],y=b[AN.sort];if(typeof x==="number"&&typeof y==="number")return (x-y)*AN.dir;return String(x).localeCompare(String(y))*AN.dir;});
   AN._rows=rows;
@@ -940,30 +975,35 @@ function anRenderDetail(){
     anTab("dec","Decreased",p.dec.n)+
     anTab("lost","Lost",p.lost.n)+
     '</div>'+
-    '<input class="an-in" id="an-q" placeholder="Search MID / trading / legal…" oninput="AN.q=this.value;anRenderDetail()" value="'+esc(AN.q)+'" style="min-width:220px">'+
+    '<input class="an-in" id="an-q" placeholder="Search MID / trading / legal…" oninput="AN.q=this.value;anRenderDetail()" value="'+esc(AN.q)+'" style="min-width:200px">'+
+    '<select class="an-sel" onchange="AN.reason=this.value;anRenderDetail()"><option value="">All reasons</option>'+
+    rkeys.map(function(k){return '<option value="'+k+'"'+(AN.reason===k?" selected":"")+'>'+esc(REASON_LABELS[k]||k)+'</option>';}).join("")+'</select>'+
     '<span class="an-hint">click a MID to open the business</span></div>';
   h+='<div class="an-panel" style="padding:0"><div class="an-tw"><table><thead><tr>'+
     anTh("mid","MID")+anTh("trading","Trading")+anTh("legal","Legal")+
-    anTh("prev",esc(D.meta.prevLabel),1)+anTh("cur",esc(D.meta.curLabel),1)+anTh("delta","Change",1)+anTh("cat","Category")+
+    anTh("prev",esc(D.meta.prevLabel),1)+anTh("cur",esc(D.meta.curLabel),1)+anTh("delta","Change",1)+anTh("cat","Category")+'<th>Last Batch</th><th>MID Status</th><th>Reason</th>'+
     '</tr></thead><tbody>';
-  if(!rows.length)h+='<tr><td colspan="7" style="padding:16px;color:#6b7f95">No matches.</td></tr>';
+  if(!rows.length)h+='<tr><td colspan="10" style="padding:16px;color:#6b7f95">No matches.</td></tr>';
   rows.forEach(function(r){h+='<tr><td><span class="an-clk" onclick="show(\'search\',\''+jsq(String(r.mid))+'\')">'+esc(r.mid)+'</span></td>'+
     '<td>'+esc(r.trading)+'</td><td>'+esc(r.legal)+'</td>'+
     '<td class="num">'+gbp2(r.prev)+'</td><td class="num">'+gbp2(r.cur)+'</td>'+
     '<td class="num" style="color:'+(r.delta>=0?"#16a15c":"#dd4b4b")+';font-weight:600">'+(r.delta>=0?"+":"−")+gbp2(Math.abs(r.delta))+'</td>'+
-    '<td><span class="an-tag '+r.cat+'">'+CN[r.cat]+'</span></td></tr>';});
+    '<td><span class="an-tag '+r.cat+'">'+CN[r.cat]+'</span></td>'+
+    '<td>'+esc(lastBatch(r.mid))+'</td>'+
+    '<td>'+esc(midStatus(r.mid))+'</td>'+
+    '<td style="color:#516074">'+esc(anReason(r))+'</td></tr>';});
   h+='</tbody></table></div></div>';
   d.innerHTML=h;
 }
 function anTab(c,label,n){return '<button class="an-tab '+(AN.cat===c?"on":"")+'" onclick="anCat(\''+c+'\')">'+label+'<span class="c">'+n+'</span></button>';}
-function anCat(c){AN.cat=c;anRenderDetail();}
+function anCat(c){AN.cat=c;AN.reason="";anRenderDetail();}
 function anTh(col,label,num){var ar=AN.sort===col?(AN.dir===1?" ▲":" ▼"):"";return '<th class="'+(num?"num":"")+'" onclick="anSort(\''+col+'\')">'+label+ar+'</th>';}
 function anSort(col){if(AN.sort===col)AN.dir*=-1;else{AN.sort=col;AN.dir=(col==="delta"||col==="prev"||col==="cur")?-1:1;}anRenderDetail();}
 function anExport(){
   if(typeof XLSX==="undefined"){alert("Excel library still loading — try again in a moment.");return;}
   const CN={inc:"Increased",dec:"Decreased",lost:"Lost"};
   const data=(AN._rows||[]).map(function(r){var o={};o.MID=r.mid;o.Trading=r.trading;o.Legal=r.legal;
-    o[D.meta.prevLabel]=+(+r.prev).toFixed(2);o[D.meta.curLabel]=+(+r.cur).toFixed(2);o.Change=+(+r.delta).toFixed(2);o.Category=CN[r.cat];return o;});
+    o[D.meta.prevLabel]=+(+r.prev).toFixed(2);o[D.meta.curLabel]=+(+r.cur).toFixed(2);o.Change=+(+r.delta).toFixed(2);o.Category=CN[r.cat];o["Last Batch"]=lastBatch(r.mid);o["MID Status"]=midStatus(r.mid);o.Reason=anReason(r);return o;});
   const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"Partner Analytics");
   XLSX.writeFile(wb,("Partner Analytics - "+(AN.partner||"all")+".xlsx").replace(/[\\/:*?"<>|]/g,"_"));

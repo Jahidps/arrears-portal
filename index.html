@@ -266,6 +266,16 @@ function monthsToDate(s){
   let n=(t.getFullYear()-y)*12+(t.getMonth()+1-mo)+(t.getDate()>=d?1:0);
   return n>0?n:0;
 }
+/* buyback = max(contract pay × (term − paid), 0) + arrears
+   (paid ≥ term → 0, never negative; if in arrears, shows the arrears) */
+function buyback(x){
+  const cp=typeof x[2]==="number"?x[2]:parseFloat(x[2]);
+  let term=parseFloat(x[6]), paid=parseFloat(x[7]);
+  const arr=typeof x[1]==="number"?x[1]:0;
+  if(!isFinite(cp)||!isFinite(term))return "—";
+  if(!isFinite(paid))paid=0;
+  return gbp2(Math.max(cp*(term-paid),0)+arr);
+}
 function isActive(row){return row[CI.Active]===1;}
 
 /* ===== nav ===== */
@@ -540,9 +550,10 @@ function bizCard(r,expanded){
   h+='<div class="sect">Arrears &amp; Leases'+(leases.length?' &middot; '+leases.length:'')+'</div>';
   if(leases.length){
     h+='<div class="tablewrap" style="max-height:none;box-shadow:none;border:0;border-radius:0"><table>'+
-      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Contract Pay</th><th class="num">Term</th><th class="num">To be Paid</th><th class="num">Paid</th><th>Commencement</th><th>End Date</th><th>Status</th></tr></thead><tbody>';
+      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Buyback Amount</th><th class="num">Contract Pay</th><th class="num">Term</th><th class="num">To be Paid</th><th class="num">Paid</th><th>Commencement</th><th>End Date</th><th>Status</th></tr></thead><tbody>';
     leases.forEach(function(x){h+='<tr><td>'+esc(x[0])+'</td>'+
       '<td class="arr">'+(typeof x[1]==="number"?gbp2(x[1]):"")+'</td>'+
+      '<td class="num">'+buyback(x)+'</td>'+
       '<td class="num">'+(typeof x[2]==="number"?gbp2(x[2]):"—")+'</td>'+
       '<td class="num">'+esc(x[6]||"—")+'</td>'+
       '<td class="num">'+monthsToDate(x[4])+'</td>'+

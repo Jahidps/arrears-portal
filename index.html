@@ -80,15 +80,14 @@
   .searchbox.has .clr{display:flex}
   .hint{font-size:11px;color:var(--muted);margin-top:8px}
 
-  .kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px}
-  .kpi{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px 18px 15px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(11,31,63,.05);transition:transform .16s,box-shadow .16s}
-  .kpi:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(11,31,63,.09)}
-  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ac,#2f74d0)}
-  .kpi .kicon{width:38px;height:38px;border-radius:11px;background:var(--tt,#e9f1fc);color:var(--ac,#2f74d0);display:flex;align-items:center;justify-content:center;margin-bottom:13px}
-  .kpi .kicon svg{width:20px;height:20px}
-  .kpi .lab{font-size:10.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
-  .kpi .val{font-size:24px;font-weight:800;color:var(--text);margin-top:5px;line-height:1.05}
-  .kpi .note{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:18px}
+  .kpi{border-radius:18px;padding:20px 20px 18px;position:relative;overflow:hidden;color:#fff;box-shadow:0 6px 18px rgba(11,31,63,.16);transition:transform .18s,box-shadow .18s}
+  .kpi:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(11,31,63,.26)}
+  .kpi .khead{display:flex;justify-content:flex-end;margin-bottom:8px}
+  .kpi .ktrend{font-size:11px;font-weight:700;padding:4px 9px;border-radius:20px;background:rgba(255,255,255,.25);color:#fff;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;margin-top:2px}
+  .kpi .lab{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:rgba(255,255,255,.9)}
+  .kpi .val{font-size:27px;font-weight:800;color:#fff;margin-top:6px;line-height:1.04;letter-spacing:-.4px}
+  .kpi .note{font-size:11.5px;color:rgba(255,255,255,.85);margin-top:6px}
 
   .panel{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin-bottom:20px;box-shadow:var(--shadow)}
   .panel h3{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:14px}
@@ -193,7 +192,20 @@
   <main id="main"><div class="empty">Loading…</div></main>
 </div>
 
-<script src="lease_data.js"></script>
+<script>
+/* ===== cache-busting data loader =====
+   ver.js is tiny and always fetched fresh (Date.now); the big data file is then
+   loaded versioned by APP_VER, so a data update refreshes automatically — no hard
+   refresh needed. Falls back to a timestamp if ver.js is missing. */
+window.__dataReady=false;
+(function(){
+  function add(src,cb){var s=document.createElement("script");s.async=false;s.onload=cb;s.onerror=cb;s.src=src;document.head.appendChild(s);}
+  add("ver.js?_="+Date.now(),function(){
+    var v="?v="+encodeURIComponent(window.APP_VER||String(Date.now()));
+    add("lease_data.js"+v,function(){window.__dataReady=true;if(window.__onData)window.__onData();});
+  });
+})();
+</script>
 <script>
 /* ===== passcode ===== */
 const PASS_HASH="cfcba9d06239fed878cf3c855395d79dcd28aedccc924bdb21521c8c663cf64f";
@@ -204,7 +216,12 @@ async function checkPass(){
   else{document.getElementById("passErr").textContent="Incorrect passcode";document.getElementById("pass").value="";}
 }
 document.getElementById("pass").addEventListener("keydown",e=>{if(e.key==="Enter")checkPass();});
-function unlock(){document.getElementById("gate").style.display="none";document.getElementById("app").classList.add("on");init();}
+function unlock(){document.getElementById("gate").style.display="none";document.getElementById("app").classList.add("on");safeInit();}
+function safeInit(){
+  if(window.__dataReady&&window.LEASE){init();return;}
+  var m=document.getElementById("main");if(m)m.innerHTML='<div class="empty">Loading data…</div>';
+  window.__onData=function(){init();};
+}
 if(sessionStorage.getItem("psl_auth")==="1")setTimeout(unlock,0);
 
 /* ===== data ===== */
@@ -213,7 +230,7 @@ const MAIN=[
   {k:"dash",  label:"Dashboard",      ic:"M3 13h8V3H3zM3 21h8v-6H3zM13 21h8V11h-8zM13 3v6h8V3z", g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
   {k:"all",   label:"All Businesses", ic:"M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z", g:"linear-gradient(135deg,#33b1e8,#1a56ad)"},
   {k:"resid", label:"Residual View",   src:"residuals.html", ic:"M4 20h16v-2H6V4H4v16zm3-3h2v-6H7v6zm4 0h2V7h-2v10zm4 0h2v-8h-2v8z", g:"linear-gradient(135deg,#2bbd77,#178a53)",
-   subs:[{k:"dash",label:"Dashboard"},{k:"part",label:"Top Partners"},{k:"funding",label:"Funding"},{k:"search",label:"Search"},{k:"movers",label:"Biggest Movers"}]},
+   subs:[{k:"dash",label:"Dashboard"},{k:"part",label:"Top Partners"},{k:"funding",label:"Funding"},{k:"movers",label:"Biggest Movers"},{k:"analytics",label:"Partner Analytics"},{k:"search",label:"Search"}]},
   {k:"arrears",label:"Arrears View",   src:"arrears.html",   ic:"M12 2L1 21h22L12 2zm0 5l6.9 12H5.1L12 7zm-1 4v3h2v-3h-2zm0 4v2h2v-2h-2z", g:"linear-gradient(135deg,#ef6a6a,#c22f2f)",
    subs:[{k:"dashboard",label:"Dashboard"},{k:"fdgl",label:"FDGL"},{k:"paytek",label:"Paytek"},{k:"ps_lease",label:"PS Lease"},{k:"new_arrears",label:"New Arrears"},{k:"increased",label:"Increased"},{k:"settled",label:"Settled"}]}
 ];
@@ -330,7 +347,7 @@ function renderDash(){
   const rd=mt.lastResidual-(mt.residPrev||0), rs=rd>=0?"+":"−";
   h+='<div class="kgrid">'+
     kpi("blue","Active Businesses",s.active.toLocaleString(),s.total.toLocaleString()+" in MID list","biz")+
-    kpi("green","Last Month Residual",gbp(mt.lastResidual),rs+gbp(Math.abs(rd))+" vs "+mt.residPrevLabel,"money")+
+    kpi("green","Last Month Residual",gbp(mt.lastResidual),"vs "+mt.residPrevLabel,"money",(rd>=0?"+":"−")+gbp(Math.abs(rd)))+
     kpi("orange","Last Funding",gbp(mt.lastFunding),mt.fundingLabel+" · all providers","fund")+
     kpi("red","Total Arrears",gbp(mt.totalArrears),(mt.inArrears||0).toLocaleString()+" businesses in arrears","arr")+
     kpi("teal","Earning Residual",(mt.residCount||0).toLocaleString(),"businesses paid in "+mt.residLabel,"residual")+
@@ -350,9 +367,10 @@ function renderDash(){
 }
 const GRAD={blue:"blue",green:"green",orange:"orange",red:"red",teal:"teal",purple:"purple",slate:"slate"};
 const PAL={
-  blue:{a:"#2f74d0",t:"#e9f1fc"}, green:{a:"#16a15c",t:"#e6f6ee"}, orange:{a:"#e08a2b",t:"#fbf0e1"},
-  red:{a:"#dd4b4b",t:"#fdebeb"}, teal:{a:"#1596ad",t:"#e3f4f7"}, purple:{a:"#6a4fd0",t:"#eeeafb"},
-  slate:{a:"#5b6b7f",t:"#eef1f5"}
+  blue:{g:"linear-gradient(135deg,#33b1e8,#1a56ad)"}, green:{g:"linear-gradient(135deg,#2bbd77,#178a53)"},
+  orange:{g:"linear-gradient(135deg,#efa24f,#d1702f)"}, red:{g:"linear-gradient(135deg,#ef6a6a,#cf3f3f)"},
+  teal:{g:"linear-gradient(135deg,#2bb0c9,#1c86a0)"}, purple:{g:"linear-gradient(135deg,#6a5ce0,#3f3bb0)"},
+  slate:{g:"linear-gradient(135deg,#64748b,#475569)"}
 };
 const KIC={
   biz:'M4 4h16v4H4zM4 10h16v4H4zM4 16h16v4H4z',
@@ -365,10 +383,12 @@ const KIC={
   closed:'M18.3 5.7L12 12l6.3 6.3-1.4 1.4L10.6 13l-6.3 6.3-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4L10.6 11l6.3-6.3z',
   residual:'M3 3v18h18v-2H5V3zm4 12h2v3H7zm4-6h2v9h-2zm4 3h2v6h-2z'
 };
-function kpi(key,lab,val,note,icon){
+function kpi(key,lab,val,note,icon,trend){
   const p=PAL[key]||PAL.blue;
-  const ic=(icon&&KIC[icon])?'<div class="kicon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="'+KIC[icon]+'"/></svg></div>':'';
-  return '<div class="kpi" style="--ac:'+p.a+';--tt:'+p.t+'">'+ic+'<div class="lab">'+esc(lab)+'</div><div class="val">'+val+'</div><div class="note">'+esc(note)+'</div></div>';
+  let head='';
+  if(trend){const up=!/^[-−▼]/.test(String(trend).trim());head='<div class="khead"><span class="ktrend">'+(up?'▲':'▼')+' '+esc(String(trend).replace(/^[▲▼+\-−]\s*/,''))+'</span></div>';}
+  return '<div class="kpi" style="background:'+p.g+'">'+head+
+    '<div class="lab">'+esc(lab)+'</div><div class="val">'+val+'</div><div class="note">'+esc(note)+'</div></div>';
 }
 
 /* ===== unified search ===== */
@@ -384,24 +404,37 @@ function runSearch(){
   if(!q){R.innerHTML="";if(db)db.style.display="";return;}
   if(db)db.style.display="none";
   const ql=q.toLowerCase();
-  // ---- MID and Lease No: EXACT match only (no wildcard) ----
-  if(byMID[q]){curBiz={mid:q,expanded:false,back:null};renderBiz();return;}                 // exact MID
-  let lm=LMAP[q];                                                     // exact Lease No
+  const qd=ql.replace(/[^a-z0-9]/g,"");            // digits/letters only (format-insensitive)
+  // ---- 1) exact MID / Lease: jump straight to the business ----
+  if(byMID[q]){curBiz={mid:q,expanded:false,back:null};renderBiz();return;}
+  let lm=LMAP[q];
   if(!lm){const lk=Object.keys(LMAP).find(k=>k.toLowerCase()===ql); if(lk)lm=LMAP[lk];}
   if(lm&&byMID[lm]){curBiz={mid:lm,expanded:false,back:null};renderBiz();return;}
-  // a code-like query (all digits, or contains a hyphen) is a MID/Lease — do NOT partial-match
-  if(/^\d+$/.test(q) || q.indexOf("-")>-1){
-    R.innerHTML='<div class="bizcard"><div class="empty">No exact match for MID / Lease &ldquo;'+esc(q)+'&rdquo;. Check the number, or search by business name.</div></div>';return;
-  }
-  // ---- sales partner + business name: contains (like Residual View) ----
+  // ---- 2) exact partner name ----
   const exactP=PARTNERS.find(n=>n.toLowerCase()===ql);
   if(exactP){openPartner(exactP);return;}
+  // ---- 3) smart partial match across MID / Lease No / Legal / Trading / Partner ----
   const pmatch=PARTNERS.filter(n=>n.toLowerCase().includes(ql)).sort().slice(0,25);
-  const bmatch=ROWS.filter(r=>String(r[CI["Legal Name"]]).toLowerCase().includes(ql)
-      ||String(r[CI["Trading Name"]]).toLowerCase().includes(ql)).slice(0,80);
+  const seen={}, bmatch=[];
+  for(let i=0;i<ROWS.length;i++){
+    const r=ROWS[i], mid=String(r[CI.MID]); if(seen[mid])continue;
+    const midl=mid.toLowerCase(),
+          leases=String(r[CI.Leases]==null?"":r[CI.Leases]).toLowerCase(),
+          legal=String(r[CI["Legal Name"]]==null?"":r[CI["Legal Name"]]).toLowerCase(),
+          trad=String(r[CI["Trading Name"]]==null?"":r[CI["Trading Name"]]).toLowerCase(),
+          partner=String(r[CI.Partner]==null?"":r[CI.Partner]).toLowerCase();
+    let hit = midl.includes(ql)||leases.includes(ql)||legal.includes(ql)||trad.includes(ql)||partner.includes(ql);
+    if(!hit && qd.length>=4){ hit = midl.replace(/[^a-z0-9]/g,"").includes(qd)
+                                 || leases.replace(/[^a-z0-9]/g,"").includes(qd); }
+    if(hit){ seen[mid]=1; bmatch.push(r); if(bmatch.length>=200)break; }
+  }
+  // ---- 4) single clean hit -> open it directly ----
   if(pmatch.length===1 && !bmatch.length){openPartner(pmatch[0]);return;}
   if(!pmatch.length && bmatch.length===1){curBiz={mid:String(bmatch[0][CI.MID]),expanded:false,back:null};renderBiz();return;}
-  if(!pmatch.length && !bmatch.length){R.innerHTML='<div class="bizcard"><div class="empty">No match for &ldquo;'+esc(q)+'&rdquo;.</div></div>';return;}
+  if(!pmatch.length && !bmatch.length){
+    R.innerHTML='<div class="bizcard"><div class="empty">No match for &ldquo;'+esc(q)+'&rdquo;. Try a MID, lease number, business name or sales partner — partial is fine.</div></div>';return;
+  }
+  // ---- 5) show ranked lists ----
   let h='';
   if(pmatch.length){
     h+='<div class="panel"><h3>Sales partners ('+pmatch.length+')</h3><div class="tablewrap" style="max-height:none;box-shadow:none;border:0"><table>'+
@@ -411,9 +444,10 @@ function runSearch(){
     h+='</tbody></table></div></div>';
   }
   if(bmatch.length){
-    h+='<div class="panel"><h3>Businesses ('+bmatch.length+')</h3><div class="tablewrap" style="max-height:none;box-shadow:none;border:0"><table>'+
-      '<thead><tr><th>MID</th><th>Trading</th><th>Status</th><th class="num">Residual</th><th class="num">Arrears</th></tr></thead><tbody>';
-    bmatch.forEach(function(r){h+='<tr><td class="clk" onclick="openMID(\''+r[CI.MID]+'\')">'+esc(r[CI.MID])+'</td><td>'+esc(r[CI["Trading Name"]])+'</td><td>'+statusTag(r[CI.Status])+'</td>'+
+    h+='<div class="panel"><h3>Businesses ('+bmatch.length+(bmatch.length>=200?'+':'')+')</h3><div class="tablewrap" style="max-height:520px;box-shadow:none;border:0"><table>'+
+      '<thead><tr><th>MID</th><th>Legal Name</th><th>Trading Name</th><th>Status</th><th class="num">Residual</th><th class="num">Arrears</th></tr></thead><tbody>';
+    bmatch.forEach(function(r){h+='<tr><td class="clk" onclick="openMID(\''+jsq(String(r[CI.MID]))+'\')">'+esc(r[CI.MID])+'</td>'+
+      '<td>'+esc(r[CI["Legal Name"]]||"—")+'</td><td>'+esc(r[CI["Trading Name"]]||"—")+'</td><td>'+statusTag(r[CI.Status])+'</td>'+
       '<td class="num res">'+(typeof r[CI["Last Residual"]]==="number"?gbp2(r[CI["Last Residual"]]):"—")+'</td><td class="arr">'+(typeof r[CI.Arrears]==="number"?gbp2(r[CI.Arrears]):"")+'</td></tr>';});
     h+='</tbody></table></div></div>';
   }

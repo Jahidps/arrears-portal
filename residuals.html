@@ -172,6 +172,48 @@
   .resitem .sm{font-size:11px;color:var(--muted);margin-top:2px}
   @media(max-width:760px){aside{display:none}main{padding:18px 14px}}
 </style>
+<!-- Sales Partner Analytics: charts + Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  .an-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:18px}
+  .an-card{background:#fff;border:1px solid #e4ecf6;border-radius:16px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(11,31,63,.05)}
+  .an-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .an-card.up::before{background:#16a15c}.an-card.dn::before{background:#dd4b4b}.an-card.ne::before{background:#e0912b}
+  .an-lab{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#6b7f95}
+  .an-n{font-size:26px;font-weight:800;color:#1d2b3f;margin-top:6px;line-height:1}
+  .an-v{font-size:14px;font-weight:700;margin-top:4px}
+  .an-card.up .an-v{color:#16a15c}.an-card.dn .an-v{color:#dd4b4b}.an-card.ne .an-v{color:#c07f1d}
+  .an-sub{font-size:11px;color:#6b7f95;margin-top:4px}
+  .an-bar{display:flex;align-items:center;gap:12px;margin:6px 0 14px;flex-wrap:wrap}
+  .an-toggle{display:inline-flex;border:1px solid #e4ecf6;border-radius:10px;overflow:hidden}
+  .an-toggle button{border:0;background:#fff;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:600;color:#6b7f95;cursor:pointer}
+  .an-toggle button.on{background:#1c4e9d;color:#fff}
+  .an-panel{background:#fff;border:1px solid #e4ecf6;border-radius:16px;padding:16px;box-shadow:0 1px 3px rgba(11,31,63,.05);margin-bottom:18px}
+  .an-ct{font-size:13.5px;font-weight:700;color:#0b1f3f;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .an-ct .dot{width:11px;height:11px;border-radius:3px}
+  .an-cn{font-size:11.5px;color:#6b7f95;margin:0 0 10px}
+  .an-scroll{max-height:460px;overflow-y:auto;overflow-x:hidden}
+  .an-clk{color:#1c4e9d;cursor:pointer;font-weight:600}.an-clk:hover{text-decoration:underline}
+  .an-tabs{display:inline-flex;gap:2px;background:#f1f5fa;border:1px solid #e4ecf6;border-radius:10px;padding:3px;flex-wrap:wrap}
+  .an-tab{border:0;background:none;padding:7px 13px;border-radius:8px;font:inherit;font-size:12.5px;font-weight:600;color:#6b7f95;cursor:pointer}
+  .an-tab.on{background:#fff;color:#1c4e9d;box-shadow:0 1px 3px rgba(11,31,63,.1)}
+  .an-tab .c{opacity:.7;font-weight:700;margin-left:3px}
+  .an-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 10px}
+  .an-head h3{font-size:16px;color:#0b1f3f;font-weight:700;margin:0}
+  .an-tw{max-height:460px;overflow:auto;border:1px solid #e4ecf6;border-radius:12px}
+  #an-detail table{width:100%;border-collapse:collapse;font-size:12.5px}
+  #an-detail th,#an-detail td{padding:9px 12px;border-bottom:1px solid #eef3f8;text-align:left;white-space:nowrap}
+  #an-detail th{cursor:pointer;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;color:#6b7f95;background:#f8fbfe;position:sticky;top:0}
+  #an-detail td.num,#an-detail th.num{text-align:right}
+  .an-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .an-tag.inc{background:#e6f6ee;color:#16a15c}.an-tag.dec{background:#fbf0e1;color:#c07f1d}.an-tag.lost{background:#fdebeb;color:#dd4b4b}
+  .an-btn{border:1px solid #e4ecf6;background:#fff;border-radius:10px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:600;color:#1c4e9d;cursor:pointer}
+  .an-btn:hover{background:#f3f7fc}
+  .an-btn.exp{background:#178a53;color:#fff;border-color:#178a53}.an-btn.exp:hover{background:#127043}
+  .an-in,.an-sel{border:1px solid #e4ecf6;border-radius:10px;padding:8px 12px;font:inherit;font-size:13px;outline:none}
+  .an-hint{font-size:12px;color:#6b7f95}
+</style>
 <style>/* embed: passcode removed, parent handles auth; inner sidebar hidden (parent drives tabs); keep gradient KPIs */#gate{display:none!important}#app{display:flex!important}aside{display:none!important}main{flex:1 1 auto!important;width:100%!important}</style>
 </head>
 <body>
@@ -287,6 +329,7 @@ const TABS=[
   {k:"funding",t:"Funding",      ic:"M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2zm8 3a3 3 0 100 6 3 3 0 000-6zM6 9a2 2 0 01-2 2m16 0a2 2 0 01-2-2M6 15a2 2 0 00-2-2m16 0a2 2 0 00-2 2"},
   {k:"search",t:"Search",        ic:"M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1114 9.5 4.5 4.5 0 019.5 14z"},
   {k:"movers",t:"Biggest Movers",ic:"M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"},
+  {k:"analytics",t:"Partner Analytics",ic:"M3 3v18h18v-2H5V3H3zm4 12h2v4H7v-4zm4-6h2v10h-2V9zm4 3h2v7h-2v-7zm4-8h2v15h-2V4z"},
 ];
 function buildNav(){
   const nav=document.getElementById("nav");nav.innerHTML="";
@@ -308,9 +351,11 @@ function show(tab,arg){
   else if(tab==="part")h=viewPartners();
   else if(tab==="funding")h=viewFunding();
   else if(tab==="movers")h=viewMovers();
+  else if(tab==="analytics")h=viewAnalytics();
   else if(tab==="search")h=viewSearch(arg);
   main.innerHTML='<div class="view">'+h+'</div>';
   if(tab==="search"){const i=document.getElementById("q");if(i){i.focus();if(arg){i.value=arg;doSearch();}}}
+  if(tab==="analytics"){renderAnalytics();anRenderDetail();}
 }
 
 /* ================= DASHBOARD ================= */
@@ -809,6 +854,120 @@ function diagnosePartner(p,x){
 /* ================= INIT ================= */
 function toggleCard(btn){const c=btn.closest(".card");const open=c.classList.toggle("open");
   const n=btn.dataset.n;btn.textContent=open?"Show less ▲":("View all "+n+" ▼");}
+/* ================= SALES PARTNER ANALYTICS ================= */
+let PA=null;
+let AN={partner:null,cat:"",q:"",sort:"delta",dir:1,_rows:[]};
+let anCharts={};
+function computeAnalytics(){
+  if(PA)return PA;
+  const map={};
+  function ent(name){if(!map[name])map[name]={name:name,inc:{n:0,v:0},dec:{n:0,v:0},lost:{n:0,v:0},rows:[]};return map[name];}
+  MIDS.forEach(function(m){
+    const name=m.partner||"—"; let cat=null, delta=+(m.earnJ-m.earnM).toFixed(2);
+    if(m.presM&&!m.presJ){cat="lost";delta=-(+m.earnM);}
+    else if(m.presJ&&m.presM){if(m.earnJ>m.earnM)cat="inc";else if(m.earnJ<m.earnM)cat="dec";}
+    if(!cat)return;
+    const e=ent(name);
+    if(cat==="inc"){e.inc.n++;e.inc.v+=delta;}
+    else if(cat==="dec"){e.dec.n++;e.dec.v+=delta;}
+    else{e.lost.n++;e.lost.v+=delta;}
+    e.rows.push({mid:m.mid,trading:m.trading,legal:m.legal,prev:+m.earnM,cur:+m.earnJ,delta:delta,cat:cat});
+  });
+  PA=Object.keys(map).map(function(k){var p=map[k];p.total=p.inc.n+p.dec.n+p.lost.n;p.net=+(p.inc.v+p.dec.v+p.lost.v).toFixed(2);return p;})
+     .filter(function(p){return p.total>0;});
+  return PA;
+}
+function viewAnalytics(){
+  const pa=computeAnalytics(),m=D.meta;
+  const tot={inc:{n:0,v:0},dec:{n:0,v:0},lost:{n:0,v:0}};
+  pa.forEach(function(p){["inc","dec","lost"].forEach(function(k){tot[k].n+=p[k].n;tot[k].v+=p[k].v;});});
+  let h='<div class="pagehead"><h2>Sales Partner Analytics</h2><span class="desc">residual movement '+esc(m.prevLabel)+' &rarr; '+esc(m.curLabel)+' · '+pa.length+' partners</span></div>';
+  h+='<div class="an-cards">'+
+    anCard("Residual Increased",tot.inc.n,tot.inc.v,"up","businesses with higher residual")+
+    anCard("Residual Decreased",tot.dec.n,tot.dec.v,"ne","lower residual than last month")+
+    anCard("Businesses Lost",tot.lost.n,tot.lost.v,"dn","no residual this month")+
+    '</div>';
+  h+='<div class="an-hint" style="margin:2px 0 16px">Every partner is shown in each chart (scroll inside a chart). Click any bar to list that partner’s businesses below; click a MID to open the business.</div>';
+  h+=anChartPanel("inc","#16a15c","Residual Increased","£ gained · "+tot.inc.n.toLocaleString()+" businesses across "+pa.filter(p=>p.inc.n>0).length+" partners");
+  h+=anChartPanel("dec","#e0912b","Residual Decreased","£ reduced · "+tot.dec.n.toLocaleString()+" businesses across "+pa.filter(p=>p.dec.n>0).length+" partners");
+  h+=anChartPanel("lost","#dd4b4b","Businesses Lost","count of leases that stopped earning · "+pa.filter(p=>p.lost.n>0).length+" partners");
+  h+='<div id="an-detail"></div>';
+  return h;
+}
+function anChartPanel(cat,color,title,cap){
+  return '<div class="an-panel"><div class="an-ct"><span class="dot" style="background:'+color+'"></span>'+title+'</div>'+
+    '<div class="an-cn">'+cap+'</div><div class="an-scroll"><div id="wrap-'+cat+'" style="position:relative"><canvas id="anc-'+cat+'"></canvas></div></div></div>';
+}
+function anCard(label,n,v,cls,sub){
+  return '<div class="an-card '+cls+'"><div class="an-lab">'+label+'</div><div class="an-n">'+n.toLocaleString()+'</div>'+
+    '<div class="an-v">'+(v>=0?"+":"−")+gbp(Math.abs(v))+'</div><div class="an-sub">'+sub+'</div></div>';
+}
+function renderAnalytics(){
+  if(typeof Chart==="undefined"){["inc","dec","lost"].forEach(function(c){var w=document.getElementById("wrap-"+c);if(w)w.innerHTML='<div class="an-hint" style="padding:24px;text-align:center">Chart library loading… reopen this tab in a moment.</div>';});return;}
+  const pa=computeAnalytics();
+  anBuild("inc","#16a15c",true, pa.filter(p=>p.inc.n>0).map(p=>({name:p.name,val:Math.round(p.inc.v),n:p.inc.n})).sort((a,b)=>b.val-a.val));
+  anBuild("dec","#e0912b",true, pa.filter(p=>p.dec.n>0).map(p=>({name:p.name,val:Math.round(Math.abs(p.dec.v)),n:p.dec.n})).sort((a,b)=>b.val-a.val));
+  anBuild("lost","#dd4b4b",false,pa.filter(p=>p.lost.n>0).map(p=>({name:p.name,val:p.lost.n,n:p.lost.n,vv:Math.round(Math.abs(p.lost.v))})).sort((a,b)=>b.val-a.val));
+}
+function anBuild(cat,color,isMoney,data){
+  const el=document.getElementById("anc-"+cat);if(!el)return;
+  const wrap=document.getElementById("wrap-"+cat);if(wrap)wrap.style.height=Math.max(150,data.length*22+34)+"px";
+  if(anCharts[cat])anCharts[cat].destroy();
+  anCharts[cat]=new Chart(el,{type:"bar",
+    data:{labels:data.map(function(d){return d.name.length>30?d.name.slice(0,29)+"…":d.name;}),
+      datasets:[{data:data.map(function(d){return d.val;}),backgroundColor:color,borderRadius:3,maxBarThickness:16}]},
+    options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+      scales:{x:{beginAtZero:true,title:{display:true,text:isMoney?"£ residual":"businesses"}},y:{ticks:{autoSkip:false,font:{size:10}}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var d=data[c.dataIndex];return isMoney?(gbp(d.val)+" · "+d.n+" business(es)"):(d.n+" business(es) · "+gbp(d.vv)+" lost");}}}},
+      onClick:function(evt,els){if(els&&els.length){anSelect(data[els[0].index].name,cat);}}}});
+}
+function anSelect(name,cat){AN.partner=name;AN.cat=cat||"";AN.q="";AN.sort="delta";AN.dir=1;anRenderDetail();var d=document.getElementById("an-detail");if(d)d.scrollIntoView({behavior:"smooth",block:"start"});}
+function anRenderDetail(){
+  const d=document.getElementById("an-detail");if(!d)return;
+  if(!AN.partner){d.innerHTML='<div class="an-hint" style="padding:14px 2px">Click a partner bar in any chart above to list its businesses — with search, filter, sort and Excel export. Click a MID to open that business.</div>';return;}
+  const p=computeAnalytics().find(function(x){return x.name===AN.partner;});if(!p){d.innerHTML="";return;}
+  let rows=p.rows.slice();
+  if(AN.cat)rows=rows.filter(function(r){return r.cat===AN.cat;});
+  if(AN.q){var q=AN.q.toLowerCase();rows=rows.filter(function(r){return String(r.mid).toLowerCase().indexOf(q)>-1||String(r.trading||"").toLowerCase().indexOf(q)>-1||String(r.legal||"").toLowerCase().indexOf(q)>-1;});}
+  rows.sort(function(a,b){var x=a[AN.sort],y=b[AN.sort];if(typeof x==="number"&&typeof y==="number")return (x-y)*AN.dir;return String(x).localeCompare(String(y))*AN.dir;});
+  AN._rows=rows;
+  const CN={inc:"Increased",dec:"Decreased",lost:"Lost"};
+  let h='<div class="an-head"><h3>'+esc(AN.partner)+'</h3><span class="desc">'+rows.length+' business(es)</span>'+
+    '<span style="flex:1"></span><button class="an-btn exp" onclick="anExport()">⤓ Export to Excel</button></div>';
+  h+='<div class="an-bar"><div class="an-tabs">'+
+    anTab("","All",p.inc.n+p.dec.n+p.lost.n)+
+    anTab("inc","Increased",p.inc.n)+
+    anTab("dec","Decreased",p.dec.n)+
+    anTab("lost","Lost",p.lost.n)+
+    '</div>'+
+    '<input class="an-in" id="an-q" placeholder="Search MID / trading / legal…" oninput="AN.q=this.value;anRenderDetail()" value="'+esc(AN.q)+'" style="min-width:220px">'+
+    '<span class="an-hint">click a MID to open the business</span></div>';
+  h+='<div class="an-panel" style="padding:0"><div class="an-tw"><table><thead><tr>'+
+    anTh("mid","MID")+anTh("trading","Trading")+anTh("legal","Legal")+
+    anTh("prev",esc(D.meta.prevLabel),1)+anTh("cur",esc(D.meta.curLabel),1)+anTh("delta","Change",1)+anTh("cat","Category")+
+    '</tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="7" style="padding:16px;color:#6b7f95">No matches.</td></tr>';
+  rows.forEach(function(r){h+='<tr><td><span class="an-clk" onclick="show(\'search\',\''+jsq(String(r.mid))+'\')">'+esc(r.mid)+'</span></td>'+
+    '<td>'+esc(r.trading)+'</td><td>'+esc(r.legal)+'</td>'+
+    '<td class="num">'+gbp2(r.prev)+'</td><td class="num">'+gbp2(r.cur)+'</td>'+
+    '<td class="num" style="color:'+(r.delta>=0?"#16a15c":"#dd4b4b")+';font-weight:600">'+(r.delta>=0?"+":"−")+gbp2(Math.abs(r.delta))+'</td>'+
+    '<td><span class="an-tag '+r.cat+'">'+CN[r.cat]+'</span></td></tr>';});
+  h+='</tbody></table></div></div>';
+  d.innerHTML=h;
+}
+function anTab(c,label,n){return '<button class="an-tab '+(AN.cat===c?"on":"")+'" onclick="anCat(\''+c+'\')">'+label+'<span class="c">'+n+'</span></button>';}
+function anCat(c){AN.cat=c;anRenderDetail();}
+function anTh(col,label,num){var ar=AN.sort===col?(AN.dir===1?" ▲":" ▼"):"";return '<th class="'+(num?"num":"")+'" onclick="anSort(\''+col+'\')">'+label+ar+'</th>';}
+function anSort(col){if(AN.sort===col)AN.dir*=-1;else{AN.sort=col;AN.dir=(col==="delta"||col==="prev"||col==="cur")?-1:1;}anRenderDetail();}
+function anExport(){
+  if(typeof XLSX==="undefined"){alert("Excel library still loading — try again in a moment.");return;}
+  const CN={inc:"Increased",dec:"Decreased",lost:"Lost"};
+  const data=(AN._rows||[]).map(function(r){var o={};o.MID=r.mid;o.Trading=r.trading;o.Legal=r.legal;
+    o[D.meta.prevLabel]=+(+r.prev).toFixed(2);o[D.meta.curLabel]=+(+r.cur).toFixed(2);o.Change=+(+r.delta).toFixed(2);o.Category=CN[r.cat];return o;});
+  const ws=XLSX.utils.json_to_sheet(data),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Partner Analytics");
+  XLSX.writeFile(wb,("Partner Analytics - "+(AN.partner||"all")+".xlsx").replace(/[\\/:*?"<>|]/g,"_"));
+}
 function init(){boot();buildNav();show("dash");}
 </script>
 

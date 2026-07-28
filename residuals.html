@@ -175,7 +175,7 @@
 <!-- Sales Partner Analytics: charts + Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="midbatch.js?v=20260728203513"></script>
+<script src="midbatch.js?v=20260728204554"></script>
 <style>
   .an-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:18px}
   .an-card{background:#fff;border:1px solid #e4ecf6;border-radius:16px;padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(11,31,63,.05)}
@@ -209,6 +209,8 @@
   #an-detail td.num,#an-detail th.num{text-align:right}
   .an-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px}
   .an-tag.inc{background:#e6f6ee;color:#16a15c}.an-tag.dec{background:#fbf0e1;color:#c07f1d}.an-tag.lost{background:#fdebeb;color:#dd4b4b}
+  .st-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .st-g{background:#e6f6ee;color:#16a15c}.st-r{background:#fdebeb;color:#dd4b4b}.st-n{background:#eef1f5;color:#5b6b7f}
   .an-btn{border:1px solid #e4ecf6;background:#fff;border-radius:10px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:600;color:#1c4e9d;cursor:pointer}
   .an-btn:hover{background:#f3f7fc}
   .an-btn.exp{background:#178a53;color:#fff;border-color:#178a53}.an-btn.exp:hover{background:#127043}
@@ -857,7 +859,7 @@ function toggleCard(btn){const c=btn.closest(".card");const open=c.classList.tog
   const n=btn.dataset.n;btn.textContent=open?"Show less ▲":("View all "+n+" ▼");}
 /* ================= SALES PARTNER ANALYTICS ================= */
 let PA=null;
-let AN={partner:null,cat:"",reason:"",q:"",sort:"delta",dir:1,_rows:[]};
+let AN={partner:null,cat:"",reason:"",status:"",q:"",sort:"delta",dir:1,_rows:[]};
 let anCharts={};
 function computeAnalytics(){
   if(PA)return PA;
@@ -923,7 +925,7 @@ function anBuild(cat,color,isMoney,data){
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){var d=data[c.dataIndex];return isMoney?(gbp(d.val)+" · "+d.n+" business(es)"):(d.n+" business(es) · "+gbp(d.vv)+" lost");}}}},
       onClick:function(evt,els){if(els&&els.length){anSelect(data[els[0].index].name,cat);}}}});
 }
-function anSelect(name,cat){AN.partner=name;AN.cat=cat||"";AN.reason="";AN.q="";AN.sort="delta";AN.dir=1;anRenderDetail();var d=document.getElementById("an-detail");if(d)d.scrollIntoView({behavior:"smooth",block:"start"});}
+function anSelect(name,cat){AN.partner=name;AN.cat=cat||"";AN.reason="";AN.status="";AN.q="";AN.sort="delta";AN.dir=1;anRenderDetail();var d=document.getElementById("an-detail");if(d)d.scrollIntoView({behavior:"smooth",block:"start"});}
 /* Reason a merchant's residual moved — earnings track card volume (~18bps),
    with scheme-fee/rate-mix and stopped-trading as secondary drivers (see Elavon_Earnings_Logic.md) */
 function anReasonInfo(r){
@@ -952,17 +954,22 @@ function anReasonCat(r){return anReasonInfo(r).k;}
 const REASON_LABELS={stopped:"Stopped transacting",nottrans:"Flagged not transacting",voldown:"Lower card turnover",scheme:"Scheme fees / rate mix",plan:"Pricing / plan change",started:"Started / resumed",volup:"Higher card turnover",bettermix:"Better rate mix",none:"No change reason"};
 function lastBatch(mid){return (window.MIDBATCH&&window.MIDBATCH[String(mid)])||"—";}
 function midStatus(mid){return (window.MIDSTATUS&&window.MIDSTATUS[String(mid)])||"—";}
+function anStatusTag(s){s=String(s||"");if(!s||s==="—")return '<span class="st-tag st-n">—</span>';var n=s.toLowerCase(),c="st-n";if(/open|hold|re-?open|reserve|activ/.test(n))c="st-g";else if(/deactiv|fraud|closed|terminat|cancel/.test(n))c="st-r";return '<span class="st-tag '+c+'">'+esc(s)+'</span>';}
 function anRenderDetail(){
   const d=document.getElementById("an-detail");if(!d)return;
   if(!AN.partner){d.innerHTML='<div class="an-hint" style="padding:14px 2px">Click a partner bar in any chart above to list its businesses — with search, filter, sort and Excel export. Click a MID to open that business.</div>';return;}
   const p=computeAnalytics().find(function(x){return x.name===AN.partner;});if(!p){d.innerHTML="";return;}
   let rows=p.rows.slice();
   if(AN.cat)rows=rows.filter(function(r){return r.cat===AN.cat;});
-  // distinct reason keys available for the current category selection (for the filter dropdown)
-  const rkeys=[],seenk={};
-  rows.forEach(function(r){var k=anReasonCat(r);if(!seenk[k]){seenk[k]=1;rkeys.push(k);}});
+  // distinct reason keys + MID statuses available for the current category selection (for the filters)
+  const rkeys=[],seenk={},statuses=[],seenS={};
+  rows.forEach(function(r){var k=anReasonCat(r);if(!seenk[k]){seenk[k]=1;rkeys.push(k);}
+    var s=midStatus(r.mid);if(!seenS[s]){seenS[s]=1;statuses.push(s);}});
+  statuses.sort();
   if(AN.reason&&!seenk[AN.reason])AN.reason="";
+  if(AN.status&&!seenS[AN.status])AN.status="";
   if(AN.reason)rows=rows.filter(function(r){return anReasonCat(r)===AN.reason;});
+  if(AN.status)rows=rows.filter(function(r){return midStatus(r.mid)===AN.status;});
   if(AN.q){var q=AN.q.toLowerCase();rows=rows.filter(function(r){return String(r.mid).toLowerCase().indexOf(q)>-1||String(r.trading||"").toLowerCase().indexOf(q)>-1||String(r.legal||"").toLowerCase().indexOf(q)>-1;});}
   rows.sort(function(a,b){var x=a[AN.sort],y=b[AN.sort];if(typeof x==="number"&&typeof y==="number")return (x-y)*AN.dir;return String(x).localeCompare(String(y))*AN.dir;});
   AN._rows=rows;
@@ -978,6 +985,8 @@ function anRenderDetail(){
     '<input class="an-in" id="an-q" placeholder="Search MID / trading / legal…" oninput="AN.q=this.value;anRenderDetail()" value="'+esc(AN.q)+'" style="min-width:200px">'+
     '<select class="an-sel" onchange="AN.reason=this.value;anRenderDetail()"><option value="">All reasons</option>'+
     rkeys.map(function(k){return '<option value="'+k+'"'+(AN.reason===k?" selected":"")+'>'+esc(REASON_LABELS[k]||k)+'</option>';}).join("")+'</select>'+
+    '<select class="an-sel" onchange="AN.status=this.value;anRenderDetail()"><option value="">All MID statuses</option>'+
+    statuses.map(function(s){return '<option value="'+esc(s)+'"'+(AN.status===s?" selected":"")+'>'+esc(s)+'</option>';}).join("")+'</select>'+
     '<span class="an-hint">click a MID to open the business</span></div>';
   h+='<div class="an-panel" style="padding:0"><div class="an-tw"><table><thead><tr>'+
     anTh("mid","MID")+anTh("trading","Trading")+anTh("legal","Legal")+
@@ -990,13 +999,13 @@ function anRenderDetail(){
     '<td class="num" style="color:'+(r.delta>=0?"#16a15c":"#dd4b4b")+';font-weight:600">'+(r.delta>=0?"+":"−")+gbp2(Math.abs(r.delta))+'</td>'+
     '<td><span class="an-tag '+r.cat+'">'+CN[r.cat]+'</span></td>'+
     '<td>'+esc(lastBatch(r.mid))+'</td>'+
-    '<td>'+esc(midStatus(r.mid))+'</td>'+
+    '<td>'+anStatusTag(midStatus(r.mid))+'</td>'+
     '<td style="color:#516074">'+esc(anReason(r))+'</td></tr>';});
   h+='</tbody></table></div></div>';
   d.innerHTML=h;
 }
 function anTab(c,label,n){return '<button class="an-tab '+(AN.cat===c?"on":"")+'" onclick="anCat(\''+c+'\')">'+label+'<span class="c">'+n+'</span></button>';}
-function anCat(c){AN.cat=c;AN.reason="";anRenderDetail();}
+function anCat(c){AN.cat=c;AN.reason="";AN.status="";anRenderDetail();}
 function anTh(col,label,num){var ar=AN.sort===col?(AN.dir===1?" ▲":" ▼"):"";return '<th class="'+(num?"num":"")+'" onclick="anSort(\''+col+'\')">'+label+ar+'</th>';}
 function anSort(col){if(AN.sort===col)AN.dir*=-1;else{AN.sort=col;AN.dir=(col==="delta"||col==="prev"||col==="cur")?-1:1;}anRenderDetail();}
 function anExport(){

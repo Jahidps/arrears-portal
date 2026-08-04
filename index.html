@@ -267,7 +267,7 @@ function monthsToDate(s){
   let n=(t.getFullYear()-y)*12+(t.getMonth()+1-mo)+(t.getDate()>=d?1:0);
   return n>0?n:0;
 }
-/* buyback = max(contract pay × (term − paid), 0) + arrears
+/* buyback = max(contract pay × (term − paid), 0) × 1.20 (incl. 20% VAT) + arrears
    (paid ≥ term → 0, never negative; if in arrears, shows the arrears) */
 function buyback(x){
   const cp=typeof x[2]==="number"?x[2]:parseFloat(x[2]);
@@ -275,7 +275,7 @@ function buyback(x){
   const arr=typeof x[1]==="number"?x[1]:0;
   if(!isFinite(cp)||!isFinite(term))return "—";
   if(!isFinite(paid))paid=0;
-  return gbp2(Math.max(cp*(term-paid),0)+arr);
+  return gbp2(Math.max(cp*(term-paid),0)*1.2+arr);
 }
 function isActive(row){return row[CI.Active]===1;}
 
@@ -676,13 +676,13 @@ function renderAllBody(){
 }
 let _allT=null;function allBodyDebounced(){clearTimeout(_allT);_allT=setTimeout(renderAllBody,120);}
 function sortAll(i){if(allState.sort===i)allState.dir*=-1;else{allState.sort=i;allState.dir=1;}renderAllBody();}
-/* total buyback for a business = sum over its leases of max(cp*(term-paid),0)+arrears */
+/* total buyback for a business = sum over its leases of max(cp*(term-paid),0)*1.20 (incl VAT) + arrears */
 function bizBuyback(r){
   const dt=D.detail&&D.detail[String(r[CI.MID])];
   if(!dt||!dt.l||!dt.l.length)return null;
   let s=0,any=false;
   dt.l.forEach(function(x){const cp=typeof x[2]==="number"?x[2]:parseFloat(x[2]);let term=parseFloat(x[6]),paid=parseFloat(x[7]);const arr=typeof x[1]==="number"?x[1]:0;
-    if(isFinite(cp)&&isFinite(term)){if(!isFinite(paid))paid=0;s+=Math.max(cp*(term-paid),0)+arr;any=true;}});
+    if(isFinite(cp)&&isFinite(term)){if(!isFinite(paid))paid=0;s+=Math.max(cp*(term-paid),0)*1.2+arr;any=true;}});
   return any?s:null;
 }
 function toggleRow(btn){var tr=btn.closest("tr").nextElementSibling;if(!tr||!tr.classList.contains("detrow"))return;var open=tr.style.display==="none";tr.style.display=open?"":"none";btn.textContent=open?"View less":"View more";btn.classList.toggle("on",open);}

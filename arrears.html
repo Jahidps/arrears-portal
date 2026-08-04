@@ -230,7 +230,7 @@
   <main id="main"><div id="loading">Loading data…</div></main>
 </div>
 
-<script src="arrears_data.js?v=20260728145047"></script>
+<script src="arrears_data.js?v=20260804161232"></script>
 <script>
 /* ================= PASSCODE ================= */
 const PASS_HASH = "260f8baedb27a0588f2a461951d924462158c40a9ad64da44da03c0367072ed4";
@@ -308,7 +308,8 @@ const TOOL_TABS = [];
 const KPI = {
   active:{m:"▦", g:"linear-gradient(135deg,#29abe2,#1c4e9d)"},
   value:{m:"£",  g:"linear-gradient(135deg,#26c281,#0f8a57)"},
-  arrears:{m:"!",g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"}
+  arrears:{m:"!",g:"linear-gradient(135deg,#ef6a6a,#c22f2f)"},
+  pslease:{m:"PS",g:"linear-gradient(135deg,#8a63f4,#5433b8)"}
 };
 const MONEY_COLS = new Set(["contract payment","arrears","amount","last arrears","prev arrears","rental"]);
 const SEARCH_ONLY_TABS = ["estate","ps_lease_estate"]; /* searchable but no sidebar tab */
@@ -531,11 +532,15 @@ function renderDashboard(){
   html += '<div id="globalResults"></div>';
 
   const es = estateSummary(), wk = weeklyTracker();
+  const psTot = DATA.tabs.ps_lease_estate ? DATA.tabs.ps_lease_estate.rows.length : 0;
+  const psArr = DATA.tabs.ps_lease ? DATA.tabs.ps_lease.rows.length : 0;
+  const psPct = psTot ? (psArr/psTot*100).toFixed(1) : "0.0";
   html += '<div class="secttl">Estate overview</div>';
   html += '<div class="cards">'+
     kpiCard("active","All Leases", es.count.toLocaleString(), "in the Estate Report")+
     kpiCard("value","Total Lease Value", fmtMoney(Math.round(es.value*100)/100), "monthly contract payment · all leases")+
     kpiCard("arrears","Total Arrears", fmtMoney(Math.round(totalArr*100)/100), "across all providers")+
+    kpiCard("pslease","PS Lease in Arrears", psArr.toLocaleString()+" / "+psTot.toLocaleString(), psPct+"% of the PS Lease estate ("+psTot.toLocaleString()+" leases) is in arrears")+
   '</div>';
   html += weeklyPanel(wk);
   html += '<div class="secttl">By provider</div>';

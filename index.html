@@ -330,9 +330,20 @@ function openSub(g,key,arg){
     if(f&&f.contentWindow&&f.contentWindow.show){try{f.contentWindow.show(key,arg);}catch(e){}} }
 }
 function embedLoaded(){
-  if(pendingSub){const f=document.getElementById("embedFrame");
-    if(f&&f.contentWindow&&f.contentWindow.show){try{f.contentWindow.show(pendingSub,pendingArg);}catch(e){}}}
-  pendingSub=null; pendingArg=null;
+  if(!pendingSub){pendingArg=null;return;}
+  const key=pendingSub, arg=pendingArg; pendingSub=null; pendingArg=null;
+  let tries=0;
+  (function go(){
+    const f=document.getElementById("embedFrame");
+    let ok=false;
+    if(f&&f.contentWindow&&typeof f.contentWindow.show==="function"){
+      try{f.contentWindow.show(key,arg);ok=true;}catch(e){ok=false;}
+    }
+    tries++;
+    if(!ok&&tries<12){setTimeout(go,70);return;}
+    if(ok){setTimeout(function(){var f2=document.getElementById("embedFrame");
+      if(f2&&f2.contentWindow&&typeof f2.contentWindow.show==="function"){try{f2.contentWindow.show(key,arg);}catch(e){}}},150);}
+  })();
 }
 function residForMID(mid){ openSub('resid','search',String(mid)); }
 function show(tab,fromBack){

@@ -277,6 +277,14 @@ function buyback(x){
   if(!isFinite(paid))paid=0;
   return gbp2(Math.max(cp*(term-paid),0)*1.2+arr);
 }
+/* Remaining Terms: in arrears -> Term − Paid; otherwise Term − To-be-Paid (months elapsed) */
+function remTerms(x){
+  const term=parseFloat(x[6]); if(!isFinite(term))return "—";
+  const arr=typeof x[1]==="number"?x[1]:0; let minus;
+  if(arr>0.005){const paid=parseFloat(x[7]);minus=isFinite(paid)?paid:0;}
+  else{const tb=monthsToDate(x[4]);minus=(typeof tb==="number")?tb:0;}
+  return Math.max(term-minus,0);
+}
 function isActive(row){return row[CI.Active]===1;}
 
 /* ===== nav ===== */
@@ -564,7 +572,7 @@ function bizCard(r,expanded){
   h+='<div class="sect">Arrears &amp; Leases'+(leases.length?' &middot; '+leases.length:'')+'</div>';
   if(leases.length){
     h+='<div class="tablewrap" style="max-height:none;box-shadow:none;border:0;border-radius:0"><table>'+
-      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Buyback Amount</th><th class="num">Contract Pay</th><th class="num">Term</th><th class="num">To be Paid</th><th class="num">Paid</th><th>Commencement</th><th>End Date</th><th>Status</th></tr></thead><tbody>';
+      '<thead><tr><th>Lease No</th><th class="num">Arrears</th><th class="num">Buyback Amount</th><th class="num">Contract Pay</th><th class="num">Term</th><th class="num">To be Paid</th><th class="num">Paid</th><th class="num">Remaining Terms</th><th>Commencement</th><th>End Date</th><th>Status</th></tr></thead><tbody>';
     leases.forEach(function(x){h+='<tr><td>'+esc(x[0])+'</td>'+
       '<td class="arr">'+(typeof x[1]==="number"?gbp2(x[1]):"")+'</td>'+
       '<td class="num">'+buyback(x)+'</td>'+
@@ -572,6 +580,7 @@ function bizCard(r,expanded){
       '<td class="num">'+esc(x[6]||"—")+'</td>'+
       '<td class="num">'+monthsToDate(x[4])+'</td>'+
       '<td class="num">'+esc(x[7]||"—")+'</td>'+
+      '<td class="num">'+remTerms(x)+'</td>'+
       '<td>'+esc(x[4]||"—")+'</td>'+
       '<td>'+esc(x[5]||"—")+'</td>'+
       '<td>'+(x[8]?statusTag(x[8]):"—")+'</td></tr>';});

@@ -228,10 +228,11 @@
     const endYear = end.getFullYear();
     const dim = daysInMonth(endMonth, endYear);
     const diffDays = Math.round((end - start) / 86400000);
-    const dailyRate = amount / dim;
-    const interim = dailyRate * diffDays;
-    const vat = interim * 0.2;
-    const total = interim + vat;
+    const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+    const dailyRate = r2(amount / dim);        // per-day rate rounded to 2 decimals first
+    const interim = r2(dailyRate * diffDays);  // then multiply by the day count
+    const vat = r2(interim * 0.2);
+    const total = r2(interim + vat);
 
     const rows = [
       [`Days in ${months[endMonth-1]} ${endYear}`, `${dim} days`],
